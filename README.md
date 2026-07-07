@@ -1,7 +1,7 @@
 # Politik Yuk
 
 Paham Politik is a small Indonesian-language political news explainer for young
-readers. The MVP will use Cohere Aya to turn dense political news into clear,
+readers. The MVP uses Cohere Aya to turn dense political news into clear,
 neutral, age-aware explanations.
 
 ## Current Milestone
