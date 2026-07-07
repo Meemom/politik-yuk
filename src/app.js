@@ -13,6 +13,7 @@ const formMessage = document.querySelector("#form-message");
 const copyResultButton = document.querySelector("#copy-result");
 
 let selectedLevel = DEFAULT_READING_LEVEL;
+let latestExplanationText = "";
 
 function renderReadingLevels() {
   levelsContainer.replaceChildren(
@@ -40,6 +41,9 @@ function renderReadingLevels() {
 
 function renderExplanation() {
   const sections = buildPlaceholderExplanation(selectedLevel);
+  latestExplanationText = sections
+    .map((section) => `${section.title}\n${section.body}`)
+    .join("\n\n");
 
   resultContent.replaceChildren(
     ...sections.map((section) => {
@@ -54,21 +58,31 @@ function renderExplanation() {
   );
 }
 
+function renderGeneratedExplanation(explanation) {
+  latestExplanationText = explanation;
+
+  const article = document.createElement("article");
+  article.className = "result-section generated-result";
+
+  const heading = document.createElement("h3");
+  heading.textContent = "Hasil dari Aya";
+
+  const body = document.createElement("pre");
+  body.textContent = explanation;
+
+  article.append(heading, body);
+  resultContent.replaceChildren(article);
+}
+
 function setMessage(message) {
   formMessage.textContent = message;
 }
 
 function getResultText() {
-  return Array.from(resultContent.querySelectorAll(".result-section"))
-    .map((section) => {
-      const title = section.querySelector("h3")?.textContent ?? "";
-      const body = section.querySelector("p")?.textContent ?? "";
-      return `${title}\n${body}`;
-    })
-    .join("\n\n");
+  return latestExplanationText;
 }
 
-form.addEventListener("submit", (event) => {
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const validationMessage = validateArticleText(articleText.value);
@@ -79,10 +93,31 @@ form.addEventListener("submit", (event) => {
     return;
   }
 
-  renderExplanation();
-  setMessage(
-    "Untuk Milestone 1, hasil ini masih pratinjau statis. Integrasi Aya masuk di Milestone 2."
-  );
+  setMessage("Membuat penjelasan dengan Aya...");
+
+  try {
+    const response = await fetch("/api/explain", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        articleText: articleText.value,
+        readingLevel: selectedLevel,
+      }),
+    });
+
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.error ?? "Gagal membuat penjelasan.");
+    }
+
+    renderGeneratedExplanation(payload.explanation);
+    setMessage("Penjelasan selesai dibuat.");
+  } catch (error) {
+    setMessage(error.message);
+  }
 });
 
 copyResultButton.addEventListener("click", async () => {

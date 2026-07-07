@@ -6,12 +6,22 @@ neutral, age-aware explanations.
 
 ## Current Milestone
 
-Milestone 1 adds the static web interface:
+Milestone 2 connects the interface to a local API endpoint backed by Cohere Aya:
 
 - Article input form.
 - Reading level selector for SMP, SMA, and Mahasiswa.
-- Static preview of the planned explanation sections.
-- Basic validation, copy action, and responsive styling.
+- `/api/explain` endpoint for generation requests.
+- Cohere v2 Chat API integration using `c4ai-aya-expanse-32b`.
+- Server-side validation and API error handling.
+- Mocked tests for Cohere request payloads and response parsing.
+
+Copy `.env.example` to `.env` or set these environment variables before using
+real model calls:
+
+```bash
+COHERE_API_KEY=your_cohere_api_key_here
+COHERE_MODEL=c4ai-aya-expanse-32b
+```
 
 ## Run Locally
 

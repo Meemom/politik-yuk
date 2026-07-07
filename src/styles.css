@@ -231,8 +231,16 @@ button:focus-visible {
 }
 
 .result-section p,
+.result-section pre,
 .disclaimer {
   margin-bottom: 0;
+}
+
+.result-section pre {
+  white-space: pre-wrap;
+  color: #42504a;
+  font-family: inherit;
+  line-height: 1.6;
 }
 
 .disclaimer {
