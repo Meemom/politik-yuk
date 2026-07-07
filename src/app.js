@@ -59,19 +59,71 @@ function renderExplanation() {
 }
 
 function renderGeneratedExplanation(explanation) {
-  latestExplanationText = explanation;
+  if (typeof explanation === "string") {
+    latestExplanationText = explanation;
 
-  const article = document.createElement("article");
-  article.className = "result-section generated-result";
+    const article = document.createElement("article");
+    article.className = "result-section generated-result";
 
-  const heading = document.createElement("h3");
-  heading.textContent = "Hasil dari Aya";
+    const heading = document.createElement("h3");
+    heading.textContent = "Hasil dari Aya";
 
-  const body = document.createElement("pre");
-  body.textContent = explanation;
+    const body = document.createElement("pre");
+    body.textContent = explanation;
 
-  article.append(heading, body);
-  resultContent.replaceChildren(article);
+    article.append(heading, body);
+    resultContent.replaceChildren(article);
+    return;
+  }
+
+  const sections = [
+    ["Ringkasan Singkat", explanation.summary],
+    ["Penjelasan Sederhana", explanation.simpleExplanation],
+    ["Tokoh dan Lembaga Penting", formatNamedItems(explanation.entities)],
+    ["Istilah Sulit", formatNamedItems(explanation.terms, "term", "definition")],
+    ["Kenapa Ini Penting", explanation.whyItMatters],
+    ["Dampak ke Kehidupan Sehari-hari", explanation.dailyImpact],
+    ["Pertanyaan Kritis", formatList(explanation.criticalQuestions)],
+    ["Hal yang Perlu Dicek Lagi", formatList(explanation.needsVerification)],
+  ];
+
+  latestExplanationText = sections
+    .map(([title, body]) => `${title}\n${body}`)
+    .join("\n\n");
+
+  resultContent.replaceChildren(
+    ...sections.map(([title, body]) => {
+      const article = document.createElement("article");
+      article.className = "result-section";
+
+      const heading = document.createElement("h3");
+      heading.textContent = title;
+
+      const paragraph = document.createElement("p");
+      paragraph.textContent = body || "Tidak disebutkan di artikel.";
+
+      article.append(heading, paragraph);
+      return article;
+    })
+  );
+}
+
+function formatList(items = []) {
+  return items.length
+    ? items.map((item, index) => `${index + 1}. ${item}`).join("\n")
+    : "";
+}
+
+function formatNamedItems(items = [], nameKey = "name", descriptionKey = "description") {
+  return items.length
+    ? items
+        .map((item) => {
+          const name = item[nameKey] ?? "";
+          const description = item[descriptionKey] ?? "";
+          return description ? `${name}: ${description}` : name;
+        })
+        .join("\n")
+    : "";
 }
 
 function setMessage(message) {
