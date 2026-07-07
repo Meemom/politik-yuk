@@ -4,6 +4,13 @@ import {
   buildPlaceholderExplanation,
   validateArticleText,
 } from "./explainer.js";
+import {
+  addHistoryItem,
+  clearHistory,
+  createHistoryItem,
+  loadHistory,
+  saveHistory,
+} from "./history.js";
 
 const form = document.querySelector("#explainer-form");
 const articleText = document.querySelector("#article-text");
@@ -11,9 +18,12 @@ const levelsContainer = document.querySelector("#reading-levels");
 const resultContent = document.querySelector("#result-content");
 const formMessage = document.querySelector("#form-message");
 const copyResultButton = document.querySelector("#copy-result");
+const clearHistoryButton = document.querySelector("#clear-history");
+const historyList = document.querySelector("#history-list");
 
 let selectedLevel = DEFAULT_READING_LEVEL;
 let latestExplanationText = "";
+let historyItems = loadHistory();
 
 function renderReadingLevels() {
   levelsContainer.replaceChildren(
@@ -130,6 +140,59 @@ function setMessage(message) {
   formMessage.textContent = message;
 }
 
+function renderHistory() {
+  if (historyItems.length === 0) {
+    const emptyItem = document.createElement("li");
+    emptyItem.className = "history-empty";
+    emptyItem.textContent = "Belum ada penjelasan tersimpan.";
+    historyList.replaceChildren(emptyItem);
+    return;
+  }
+
+  historyList.replaceChildren(
+    ...historyItems.map((item) => {
+      const listItem = document.createElement("li");
+      const button = document.createElement("button");
+      const date = new Intl.DateTimeFormat("id-ID", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(item.createdAt));
+
+      button.type = "button";
+      button.className = "history-item";
+
+      const preview = document.createElement("span");
+      preview.textContent = item.articlePreview;
+
+      const metadata = document.createElement("small");
+      metadata.textContent = `${item.readingLevel.toUpperCase()} · ${date}`;
+
+      button.append(preview, metadata);
+      button.addEventListener("click", () => {
+        selectedLevel = item.readingLevel;
+        renderReadingLevels();
+        renderGeneratedExplanation(item.explanation);
+        setMessage("Riwayat dibuka.");
+      });
+
+      listItem.append(button);
+      return listItem;
+    })
+  );
+}
+
+function rememberExplanation(explanation) {
+  const item = createHistoryItem({
+    articleText: articleText.value,
+    readingLevel: selectedLevel,
+    explanation,
+  });
+
+  historyItems = addHistoryItem(item, historyItems);
+  saveHistory(historyItems);
+  renderHistory();
+}
+
 function getResultText() {
   return latestExplanationText;
 }
@@ -166,6 +229,7 @@ form.addEventListener("submit", async (event) => {
     }
 
     renderGeneratedExplanation(payload.explanation);
+    rememberExplanation(payload.explanation);
     setMessage("Penjelasan selesai dibuat.");
   } catch (error) {
     setMessage(error.message);
@@ -184,5 +248,13 @@ copyResultButton.addEventListener("click", async () => {
   setMessage("Penjelasan disalin.");
 });
 
+clearHistoryButton.addEventListener("click", () => {
+  clearHistory();
+  historyItems = [];
+  renderHistory();
+  setMessage("Riwayat dibersihkan.");
+});
+
 renderReadingLevels();
 renderExplanation();
+renderHistory();

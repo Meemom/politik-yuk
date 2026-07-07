@@ -35,7 +35,8 @@ button {
 }
 
 .workspace,
-.result-panel {
+.result-panel,
+.history-panel {
   min-width: 0;
 }
 
@@ -87,7 +88,8 @@ p {
 }
 
 .input-panel,
-.result-panel {
+.result-panel,
+.history-panel {
   border: 1px solid #ded9cd;
   border-radius: 8px;
   background: #fffdf8;
@@ -204,14 +206,16 @@ button:focus-visible {
   color: #25322d;
 }
 
-.result-panel {
+.result-panel,
+.history-panel {
   display: flex;
   flex-direction: column;
   gap: 18px;
   padding: 20px;
 }
 
-.result-header {
+.result-header,
+.history-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -250,10 +254,65 @@ button:focus-visible {
   font-size: 0.9rem;
 }
 
+.history-panel {
+  grid-column: 2;
+}
+
+.history-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-item {
+  display: block;
+  width: 100%;
+  border: 1px solid #e1dbcf;
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+  color: #25322d;
+  text-align: left;
+}
+
+.history-item span,
+.history-item small {
+  display: block;
+}
+
+.history-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 750;
+}
+
+.history-item small,
+.history-empty {
+  color: #6d7a74;
+  line-height: 1.45;
+}
+
+.history-item small {
+  margin-top: 4px;
+}
+
+.history-empty {
+  border: 1px dashed #d7d0c2;
+  border-radius: 8px;
+  padding: 14px;
+}
+
 @media (max-width: 920px) {
   .app-shell {
     grid-template-columns: 1fr;
     padding: 20px;
+  }
+
+  .history-panel {
+    grid-column: auto;
   }
 
   h1 {
@@ -271,7 +330,8 @@ button:focus-visible {
   }
 
   .form-actions,
-  .result-header {
+  .result-header,
+  .history-header {
     align-items: stretch;
     flex-direction: column;
   }
