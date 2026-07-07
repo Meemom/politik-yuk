@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DEFAULT_COHERE_MODEL,
+  READING_LEVEL_PROMPT_GUIDANCE,
   buildAyaPrompt,
   buildCohereChatPayload,
   extractCohereText,
@@ -16,11 +17,38 @@ test("builds an Indonesian Aya prompt with the article and level", () => {
   });
 
   assert.match(prompt, /Bahasa Indonesia/);
-  assert.match(prompt, /sma/);
+  assert.match(prompt, /SMA/);
   assert.match(prompt, /DPR membahas/);
   assert.match(prompt, /Jangan berpihak/);
   assert.match(prompt, /Jawab hanya dengan JSON valid/);
   assert.match(prompt, /criticalQuestions/);
+});
+
+test("uses distinct reading-level guidance in prompts", () => {
+  const prompts = Object.keys(READING_LEVEL_PROMPT_GUIDANCE).map((level) =>
+    buildAyaPrompt({
+      articleText: "a".repeat(300),
+      readingLevel: level,
+    })
+  );
+
+  assert.match(prompts[0], /kalimat pendek/i);
+  assert.match(prompts[1], /konteks politik dasar/i);
+  assert.match(prompts[2], /lebih analitis/i);
+  assert.notEqual(prompts[0], prompts[2]);
+});
+
+test("keeps political safety guardrails in the prompt", () => {
+  const prompt = buildAyaPrompt({
+    articleText: "a".repeat(300),
+    readingLevel: "sma",
+  });
+
+  assert.match(prompt, /Jangan menambahkan fakta baru/);
+  assert.match(prompt, /Bedakan isi artikel dari interpretasi/);
+  assert.match(prompt, /Jangan berpihak/);
+  assert.match(prompt, /needsVerification/);
+  assert.match(prompt, /klaim yang belum terbukti/);
 });
 
 test("builds a Cohere v2 chat payload for Aya Expanse", () => {

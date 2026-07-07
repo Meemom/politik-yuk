@@ -6,6 +6,24 @@ import {
 const COHERE_CHAT_URL = "https://api.cohere.com/v2/chat";
 export const DEFAULT_COHERE_MODEL = "c4ai-aya-expanse-32b";
 
+export const READING_LEVEL_PROMPT_GUIDANCE = {
+  smp: {
+    label: "SMP",
+    guidance:
+      "Gunakan kalimat pendek, contoh konkret, dan hindari istilah teknis kecuali langsung dijelaskan.",
+  },
+  sma: {
+    label: "SMA",
+    guidance:
+      "Gunakan bahasa ringkas dengan konteks politik dasar dan hubungan sebab-akibat yang jelas.",
+  },
+  mahasiswa: {
+    label: "Mahasiswa",
+    guidance:
+      "Boleh lebih analitis, tetapi tetap netral, jernih, dan tidak menambah fakta di luar artikel.",
+  },
+};
+
 export class CohereConfigurationError extends Error {
   constructor(message) {
     super(message);
@@ -22,9 +40,16 @@ export class CohereApiError extends Error {
 }
 
 export function buildAyaPrompt({ articleText, readingLevel }) {
+  const level =
+    READING_LEVEL_PROMPT_GUIDANCE[readingLevel] ??
+    READING_LEVEL_PROMPT_GUIDANCE.sma;
+
   return `Kamu adalah asisten literasi berita politik untuk anak muda Indonesia.
 
-Tugasmu adalah menjelaskan artikel berita politik berikut dalam Bahasa Indonesia yang jelas, netral, dan sesuai untuk tingkat pembaca: ${readingLevel}.
+Tugasmu adalah menjelaskan artikel berita politik berikut dalam Bahasa Indonesia yang jelas, netral, dan sesuai untuk tingkat pembaca: ${level.label}.
+
+Panduan tingkat pembaca:
+${level.guidance}
 
 Aturan penting:
 - Jangan menambahkan fakta baru yang tidak ada di artikel.

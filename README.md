@@ -36,3 +36,6 @@ Then open [http://localhost:4173](http://localhost:4173).
 ```bash
 npm test
 ```
+
+See [docs/QUALITY_CHECKLIST.md](docs/QUALITY_CHECKLIST.md) for the MVP QA
+checklist and suggested Indonesian political-news test scenarios.
