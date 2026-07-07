@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Pahami berita politik Indonesia dengan bahasa yang lebih jelas untuk anak muda."
+    />
+    <title>Paham Politik</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace" aria-labelledby="app-title">
+        <div class="intro">
+          <p class="eyebrow">Politik Yuk</p>
+          <h1 id="app-title">Paham Politik</h1>
+          <p>
+            Tempel artikel politik Indonesia, pilih tingkat pembaca, lalu lihat
+            penjelasan yang lebih mudah dipahami.
+          </p>
+        </div>
+
+        <form class="input-panel" id="explainer-form">
+          <label for="article-text">Artikel berita</label>
+          <textarea
+            id="article-text"
+            name="articleText"
+            minlength="300"
+            maxlength="20000"
+            placeholder="Tempel isi artikel politik Indonesia di sini..."
+            required
+          ></textarea>
+
+          <fieldset class="level-group">
+            <legend>Tingkat penjelasan</legend>
+            <div class="segmented-control" id="reading-levels"></div>
+          </fieldset>
+
+          <div class="form-actions">
+            <p id="form-message" role="status"></p>
+            <button type="submit">Jelaskan</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="result-panel" aria-labelledby="result-title">
+        <div class="result-header">
+          <div>
+            <p class="eyebrow">Pratinjau hasil</p>
+            <h2 id="result-title">Penjelasan Artikel</h2>
+          </div>
+          <button class="secondary-button" id="copy-result" type="button">
+            Salin
+          </button>
+        </div>
+
+        <div class="result-content" id="result-content"></div>
+
+        <p class="disclaimer">
+          Penjelasan ini membantu memahami artikel, bukan pengganti verifikasi
+          dari sumber tepercaya.
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
