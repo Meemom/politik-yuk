@@ -1,10 +1,14 @@
 import { createReadStream, existsSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, normalize } from "node:path";
+import { loadLocalEnv } from "../server/env.js";
+import { handleExplainRequest } from "../server/explain-route.js";
 
 const port = Number.parseInt(process.env.PORT ?? "4173", 10);
 const host = process.env.HOST ?? "127.0.0.1";
 const root = process.cwd();
+
+loadLocalEnv(root);
 
 const contentTypes = new Map([
   [".css", "text/css; charset=utf-8"],
@@ -21,6 +25,11 @@ function resolvePath(url) {
 }
 
 const server = createServer((request, response) => {
+  if (request.url === "/api/explain") {
+    handleExplainRequest(request, response);
+    return;
+  }
+
   const filePath = resolvePath(request.url ?? "/");
 
   if (!existsSync(filePath)) {

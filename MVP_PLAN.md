@@ -2,7 +2,11 @@
 
 ## 1. Product Goal
 
+<<<<<<< HEAD
+A small web app that helps young Indonesian users understand complex political news in clear, age-appropriate Bahasa Indonesia.
+=======
 Build a small web app that helps young Indonesian users understand complex political news in clear, age-appropriate Bahasa Indonesia.
+>>>>>>> main
 
 The app should let a user paste a political news article, choose a target reading level, and receive a structured explanation that is easier to understand without changing the article's meaning.
 
@@ -79,6 +83,9 @@ The model response should be structured into these sections:
 8. **Hal yang Perlu Dicek Lagi**
    - Claims, numbers, accusations, or predictions that require verification.
 
+<<<<<<< HEAD
+## 6. Prompt Design
+=======
 ## 6. Recommended Tech Stack
 
 ### Frontend
@@ -162,6 +169,7 @@ Browser UI
 For the MVP, returning Markdown is acceptable and faster to implement. Structured JSON is better if the UI will render each section separately.
 
 ## 9. Prompt Design
+>>>>>>> main
 
 The prompt should instruct Aya to be clear, neutral, and age-aware.
 
@@ -194,6 +202,9 @@ Berikan hasil dengan format:
 8. Hal yang Perlu Dicek Lagi
 ```
 
+<<<<<<< HEAD
+## 7. Success Criteria
+=======
 ## 10. UI Requirements
 
 ### First Screen
@@ -322,6 +333,7 @@ For each article, compare:
 - Does it clearly identify things that need verification?
 
 ## 16. Success Criteria
+>>>>>>> main
 
 The MVP is successful if:
 
@@ -331,7 +343,11 @@ The MVP is successful if:
 - The app avoids claiming to verify facts it has not checked.
 - The UI is simple enough for a first-time user to understand immediately.
 
+<<<<<<< HEAD
+## 8. Future Enhancements
+=======
 ## 17. Future Enhancements
+>>>>>>> main
 
 - URL article import.
 - Retrieval from trusted Indonesian news sources.
@@ -341,6 +357,8 @@ The MVP is successful if:
 - Vocabulary quiz mode for students.
 - Teacher worksheet export.
 - Support for regional languages or mixed Indonesian slang.
+<<<<<<< HEAD
+=======
 
 ## 18. Recommended MVP Build Order
 
@@ -352,3 +370,4 @@ The MVP is successful if:
 6. Add local history.
 7. Polish error states and mobile layout.
 
+>>>>>>> main
