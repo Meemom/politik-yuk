@@ -11,6 +11,8 @@ const levelsContainer = document.querySelector("#reading-levels");
 const resultContent = document.querySelector("#result-content");
 const formMessage = document.querySelector("#form-message");
 const copyResultButton = document.querySelector("#copy-result");
+const articleUrl = document.querySelector("#article-url");
+const extractUrlButton = document.querySelector("#extract-url");
 
 let selectedLevel = DEFAULT_READING_LEVEL;
 let latestExplanationText = "";
@@ -182,6 +184,33 @@ copyResultButton.addEventListener("click", async () => {
 
   await navigator.clipboard.writeText(text);
   setMessage("Penjelasan disalin.");
+});
+
+extractUrlButton.addEventListener("click", async () => {
+  setMessage("Mengambil artikel...");
+
+  try {
+    const response = await fetch("/api/extract", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        url: articleUrl.value,
+      }),
+    });
+
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.error ?? "Gagal mengambil artikel.");
+    }
+
+    articleText.value = payload.textContent;
+    setMessage(`Artikel berhasil diambil: ${payload.title || "tanpa judul"}`);
+  } catch (error) {
+    setMessage(error.message);
+  }
 });
 
 renderReadingLevels();
