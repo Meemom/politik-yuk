@@ -3,12 +3,16 @@
 ## 1. Product Goal
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 A small web app that helps young Indonesian users understand complex political news in clear, age-appropriate Bahasa Indonesia.
 =======
 Build a small web app that helps young Indonesian users understand complex political news in clear, age-appropriate Bahasa Indonesia.
 >>>>>>> main
 
 The app should let a user paste a political news article, choose a target reading level, and receive a structured explanation that is easier to understand without changing the article's meaning.
+=======
+A small web app that helps young Indonesian users understand complex political news in clear, age-appropriate Bahasa Indonesia.
+>>>>>>> main
 
 ## 2. Target Users
 
@@ -83,6 +87,7 @@ The model response should be structured into these sections:
 8. **Hal yang Perlu Dicek Lagi**
    - Claims, numbers, accusations, or predictions that require verification.
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 ## 6. Prompt Design
 =======
@@ -170,6 +175,9 @@ For the MVP, returning Markdown is acceptable and faster to implement. Structure
 
 ## 9. Prompt Design
 >>>>>>> main
+=======
+## 6. Prompt Design
+>>>>>>> main
 
 The prompt should instruct Aya to be clear, neutral, and age-aware.
 
@@ -201,6 +209,7 @@ Berikan hasil dengan format:
 7. Pertanyaan Kritis
 8. Hal yang Perlu Dicek Lagi
 ```
+<<<<<<< HEAD
 
 <<<<<<< HEAD
 ## 7. Success Criteria
@@ -370,4 +379,6 @@ The MVP is successful if:
 6. Add local history.
 7. Polish error states and mobile layout.
 
+>>>>>>> main
+=======
 >>>>>>> main
