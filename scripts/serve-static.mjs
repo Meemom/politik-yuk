@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { extname, join, normalize } from "node:path";
 import { loadLocalEnv } from "../server/env.js";
 import { handleExplainRequest } from "../server/explain-route.js";
+import { handleExtractRequest } from "../server/extract-route.js";
 
 const port = Number.parseInt(process.env.PORT ?? "4173", 10);
 const host = process.env.HOST ?? "127.0.0.1";
@@ -29,6 +30,11 @@ const server = createServer((request, response) => {
     handleExplainRequest(request, response);
     return;
   }
+
+  if (request.url === "/api/extract") {
+  handleExtractRequest(request, response);
+  return;
+}
 
   const filePath = resolvePath(request.url ?? "/");
 

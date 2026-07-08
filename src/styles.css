@@ -281,3 +281,31 @@ button:focus-visible {
     width: 100%;
   }
 }
+
+.url-extract {
+  display: grid;
+  gap: 10px;
+}
+
+.url-row {
+  display: flex;
+  gap: 8px;
+}
+
+.url-row input {
+  flex: 1;
+  min-height: 44px;
+  border: 1px solid #d4cec1;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #fffaf1;
+}
+
+.url-row button {
+  min-height: 44px;
+  border-radius: 8px;
+  padding: 0 16px;
+  background: #25322d;
+  color: white;
+  font-weight: 800;
+}
