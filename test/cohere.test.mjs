@@ -6,6 +6,7 @@ import {
   buildCohereChatPayload,
   extractCohereText,
   generateExplanationWithAya,
+  parseExplanationJson,
 } from "../server/cohere.js";
 
 test("builds an Indonesian Aya prompt with the article and level", () => {
@@ -18,6 +19,8 @@ test("builds an Indonesian Aya prompt with the article and level", () => {
   assert.match(prompt, /sma/);
   assert.match(prompt, /DPR membahas/);
   assert.match(prompt, /Jangan berpihak/);
+  assert.match(prompt, /Jawab hanya dengan JSON valid/);
+  assert.match(prompt, /criticalQuestions/);
 });
 
 test("builds a Cohere v2 chat payload for Aya Expanse", () => {
@@ -46,6 +49,26 @@ test("extracts text from Cohere chat responses", () => {
   assert.equal(text, "Ringkasan\nPenjelasan");
 });
 
+test("parses and normalizes structured Aya explanations", () => {
+  const explanation = parseExplanationJson(`\`\`\`json
+  {
+    "summary": "Ringkasan.",
+    "simpleExplanation": "Penjelasan.",
+    "entities": [{ "name": "DPR", "description": "Lembaga legislatif." }],
+    "terms": [{ "term": "RUU", "definition": "Rancangan undang-undang." }],
+    "whyItMatters": "Penting untuk publik.",
+    "dailyImpact": "Bisa memengaruhi layanan.",
+    "criticalQuestions": ["Siapa terdampak?"],
+    "needsVerification": ["Angka anggaran."]
+  }
+  \`\`\``);
+
+  assert.equal(explanation.summary, "Ringkasan.");
+  assert.equal(explanation.entities[0].name, "DPR");
+  assert.equal(explanation.terms[0].term, "RUU");
+  assert.deepEqual(explanation.criticalQuestions, ["Siapa terdampak?"]);
+});
+
 test("calls Cohere with authorization and returns explanation metadata", async () => {
   const calls = [];
   const fetchImpl = async (url, options) => {
@@ -57,7 +80,21 @@ test("calls Cohere with authorization and returns explanation metadata", async (
         return {
           finish_reason: "COMPLETE",
           message: {
-            content: [{ type: "text", text: "Penjelasan selesai." }],
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  summary: "Ringkasan.",
+                  simpleExplanation: "Penjelasan.",
+                  entities: [],
+                  terms: [],
+                  whyItMatters: "Penting.",
+                  dailyImpact: "Dampak.",
+                  criticalQuestions: ["Apa dampaknya?"],
+                  needsVerification: ["Data angka."],
+                }),
+              },
+            ],
           },
           usage: { billed_units: { input_tokens: 10, output_tokens: 20 } },
         };
@@ -75,6 +112,7 @@ test("calls Cohere with authorization and returns explanation metadata", async (
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, "https://api.cohere.com/v2/chat");
   assert.equal(calls[0].options.headers.authorization, "Bearer test-key");
-  assert.equal(result.explanation, "Penjelasan selesai.");
+  assert.equal(result.explanation.summary, "Ringkasan.");
+  assert.match(result.rawText, /Ringkasan/);
   assert.equal(result.finishReason, "COMPLETE");
 });
