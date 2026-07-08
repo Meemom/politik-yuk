@@ -1,5 +1,6 @@
 # Politik Yuk
 
+<<<<<<< HEAD
 Paham Politik is a small Indonesian-language political news explainer for young
 readers. The MVP will use Cohere Aya to turn dense political news into clear,
 neutral, age-aware explanations.
@@ -22,6 +23,9 @@ real model calls:
 COHERE_API_KEY=your_cohere_api_key_here
 COHERE_MODEL=c4ai-aya-expanse-32b
 ```
+=======
+Paham Politik is a small Indonesian-language political news explainer for young readers. The purpose of this project was to test Cohere Aya for fun! 
+>>>>>>> main
 
 ## Run Locally
 
