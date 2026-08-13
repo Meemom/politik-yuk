@@ -2,17 +2,22 @@ export const READING_LEVELS = [
   {
     id: "smp",
     label: "SMP",
-    description: "Kalimat pendek, istilah dijelaskan sangat sederhana.",
+    description: "Kalimat pendek, istilah dijelaskan sangat sederhana. Asumsikan pembaca tidak memiliki latar belakang atau pengetahuan politik sama sekali. Gunakan bahasa sehari-hari, seperti 'gua', 'lo', dll.",
   },
   {
     id: "sma",
     label: "SMA",
-    description: "Tetap ringkas, dengan konteks politik dasar.",
+    description: "Tetap ringkas, dengan konteks politik dasar. Asumsikan pembaca memiliki pengetahuan dasar tentang politik.",
   },
   {
-    id: "mahasiswa",
-    label: "Mahasiswa",
-    description: "Lebih analitis, tetapi tetap jernih dan netral.",
+    id: "sd",
+    label: "SD",
+    description: "Kalimat sangat pendek, istilah dijelaskan dengan bahasa yang sangat sederhana. Asumsikan pembaca tidak memiliki latar belakang atau pengetahuan politik sama sekali. Gunakan bahasa sehari-hari, seperti 'gua', 'lo', dll.",
+  },
+  {
+    id: "dewasa",
+    label: "Dewasa",
+    description: "Lebih analitis, tetapi tetap jernih dan netral. Asumsikan pembaca memiliki pengetahuan politik dasar.",
   },
 ];
 

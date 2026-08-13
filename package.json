@@ -1,14 +1,21 @@
 {
-  "name": "politik-yuk",
+  "name": "cohere-aya-context-engine",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
-    "start": "node scripts/serve-static.mjs",
-    "test": "node --test"
+    "dev": "npm --workspace frontend run dev",
+    "dev:frontend": "npm --workspace frontend run dev",
+    "dev:backend": "cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "lint": "npm --workspace frontend run lint",
+    "typecheck": "npm --workspace frontend run typecheck",
+    "test": "npm --workspace frontend run test",
+    "build": "npm --workspace frontend run build"
   },
-  "dependencies": {
-    "@mozilla/readability": "^0.6.0",
-    "jsdom": "^29.1.1"
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=11.0.0"
   }
 }
