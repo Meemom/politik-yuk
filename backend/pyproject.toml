@@ -3,7 +3,7 @@ requires = ["setuptools>=75.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cohere-aya-backend"
+name = "politik-yuk-backend"
 version = "0.1.0"
 description = "FastAPI backend for the Aya political news context engine."
 requires-python = ">=3.12"

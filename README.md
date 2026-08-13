@@ -1,4 +1,4 @@
-# Cohere Aya Context Engine
+# Politik Yuk
 
 Production-minded rebuild of the original Indonesian political explainer prototype into an agentic political news context engine.
 
