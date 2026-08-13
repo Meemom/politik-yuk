@@ -1,19 +1,10 @@
-# Cohere Aya Context Engine
+# politik-yuk: Political Context Engine
 
-Production-minded rebuild of the original Indonesian political explainer prototype into an agentic political news context engine.
 Reuters Institute's 2025 Indonesia report found social media had overtaken TV, print, and conventional online sources as the dominant route to news, while overall interest and trust were declining. An analysis of the same survey found that half of Indonesian 18–24-year-olds primarily encountered news through social media, with TikTok's use for news rising substantially. 
 
 After discovering this, I wanted to build Politik Yuk to help young readers easily access political news in Indonesia from trusted sources in one centralized platform. 
 
 I also just wanted to test **Cohere's Aya** for fun! specifically to see if it can handle various colloquialisms in the Indonesian language. 
-
-The first milestone establishes the application skeleton:
-
-- `frontend/` - Next.js, React, TypeScript, Tailwind-ready UI shell.
-- `backend/` - FastAPI app with typed settings and health endpoint.
-- `workers/` - background processing package placeholder.
-- `infra/` - local Postgres and Redis configuration.
-- `.github/workflows/ci.yml` - pull request checks for frontend and backend.
 
 ## Local Setup
 
