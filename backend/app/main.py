@@ -1,6 +1,8 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from app.explain import router as explain_router
 from app.settings import get_settings
 
 
@@ -13,6 +15,13 @@ class HealthResponse(BaseModel):
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title=settings.app_name)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["*"],
+    )
 
     @app.get("/health", response_model=HealthResponse)
     async def health() -> HealthResponse:
@@ -21,6 +30,8 @@ def create_app() -> FastAPI:
             service=settings.app_name,
             environment=settings.environment,
         )
+
+    app.include_router(explain_router)
 
     return app
 

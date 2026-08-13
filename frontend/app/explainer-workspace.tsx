@@ -16,14 +16,17 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import { FormEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import type {
   AnalyticalLens,
   ExplanationDepth,
   ExplanationResponse,
   InputType,
+  StreamEvent,
   UserInputRequest,
 } from "@/types/api-contracts";
+import { streamExplanation } from "@/lib/explain-stream";
 
 type InputModeOption = {
   label: string;
@@ -58,143 +61,6 @@ const lenses: LensOption[] = [
   { label: "Dampak daerah", value: "regional_impact" },
 ];
 
-const mockedExplanation: ExplanationResponse = {
-  request_id: "mock-request",
-  input: {
-    input_type: "question",
-    text: "Kenapa mahasiswa protes revisi UU TNI?",
-    depth: "quick",
-    lenses: ["democracy"],
-    locale: "id-ID",
-  },
-  intent: {
-    topic: "revisi UU TNI",
-    intent: "explanation",
-    depth: "quick",
-    lenses: ["democracy"],
-    questions: ["why students oppose the revision"],
-    tone: "clear Indonesian",
-    input_language: "id",
-  },
-  sections: [
-    {
-      section_type: "tldr",
-      title: "TL;DR",
-      body: "Isu ini diperdebatkan karena menyangkut batas peran militer di ruang sipil dan pengawasan lembaga demokratis.",
-      citation_ids: ["1", "2"],
-      uncertainty: "low",
-    },
-    {
-      section_type: "essential_context",
-      title: "Essential context",
-      body: "Penjelasan final nanti akan ditulis hanya dari sumber yang ditemukan sistem. Mock ini menunjukkan struktur bacaan, bukan kesimpulan faktual.",
-      citation_ids: ["1"],
-      uncertainty: "medium",
-    },
-    {
-      section_type: "key_claims",
-      title: "Key claims",
-      body: "Setiap klaim penting akan dipisahkan sebagai fakta, interpretasi, prediksi, atau hal yang belum terverifikasi.",
-      citation_ids: ["2"],
-      uncertainty: "medium",
-    },
-    {
-      section_type: "why_it_matters",
-      title: "Why should I care?",
-      body: "Lensa yang dipilih akan mengubah tekanan penjelasan, misalnya dampak demokrasi atau layanan publik, tanpa mengubah status faktanya.",
-      citation_ids: [],
-      uncertainty: "unknown",
-    },
-  ],
-  sources: [
-    {
-      id: "source-1",
-      url: "https://example.com/government",
-      title: "Dokumen resmi pembahasan kebijakan",
-      publisher: "Lembaga resmi",
-      retrieved_at: "2026-08-13T00:00:00Z",
-      source_type: "government",
-      language: "id",
-    },
-    {
-      id: "source-2",
-      url: "https://example.com/news",
-      title: "Laporan berita tentang respons publik",
-      publisher: "Ruang Redaksi",
-      retrieved_at: "2026-08-13T00:00:00Z",
-      source_type: "news",
-      language: "id",
-    },
-  ],
-  evidence: [],
-  citations: [
-    {
-      id: "1",
-      source_id: "source-1",
-      evidence_passage_id: "evidence-1",
-      label: "1",
-      quote: "Bagian sumber yang relevan akan tampil di sini.",
-    },
-    {
-      id: "2",
-      source_id: "source-2",
-      evidence_passage_id: "evidence-2",
-      label: "2",
-      quote: "Kutipan ringkas untuk memeriksa klaim.",
-    },
-  ],
-  claims: [
-    {
-      id: "claim-1",
-      text: "Screenshot, headline, dan unggahan sosial harus diverifikasi secara independen.",
-      normalized_text: "screenshot headline unggahan sosial perlu verifikasi independen",
-      status: "supported",
-      uncertainty: "low",
-      supporting_evidence_ids: ["evidence-1"],
-      contradicting_evidence_ids: [],
-      entity_ids: [],
-      citation_ids: ["1"],
-    },
-    {
-      id: "claim-2",
-      text: "Dampak langsung kebijakan belum bisa disimpulkan tanpa dokumen dan liputan tambahan.",
-      normalized_text: "dampak langsung kebijakan belum bisa disimpulkan",
-      status: "unverified",
-      uncertainty: "high",
-      supporting_evidence_ids: [],
-      contradicting_evidence_ids: [],
-      entity_ids: [],
-      citation_ids: [],
-    },
-  ],
-  entities: [
-    {
-      id: "entity-1",
-      name: "DPR",
-      entity_type: "government_institution",
-      aliases: ["Dewan Perwakilan Rakyat"],
-      description: "Lembaga legislatif yang relevan ketika sebuah revisi undang-undang dibahas.",
-      source_ids: ["source-1"],
-    },
-    {
-      id: "entity-2",
-      name: "TNI",
-      entity_type: "government_institution",
-      aliases: ["Tentara Nasional Indonesia"],
-      description: "Institusi yang menjadi subjek utama dalam isu revisi UU TNI.",
-      source_ids: ["source-1"],
-    },
-  ],
-  timeline: [],
-  graph_nodes: [],
-  graph_edges: [],
-  follow_up_questions: [
-    "Apa pasal yang paling diperdebatkan?",
-    "Sumber mana yang paling baru?",
-    "Apa argumen pemerintah dan kritiknya?",
-  ],
-};
-
 function createRequest(
   inputType: InputType,
   text: string,
@@ -221,14 +87,17 @@ export function ExplainerWorkspace() {
   const [selectedLenses, setSelectedLenses] = useState<AnalyticalLens[]>(["democracy"]);
   const [workflowState, setWorkflowState] = useState<WorkflowState>("empty");
   const [lastRequest, setLastRequest] = useState<UserInputRequest | null>(null);
+  const [progressEvents, setProgressEvents] = useState<StreamEvent[]>([]);
+  const [explanation, setExplanation] = useState<ExplanationResponse | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const isUrlMode = inputType === "url";
   const isScreenshotMode = inputType === "screenshot";
   const canSubmit = isUrlMode ? url.trim().length > 0 : text.trim().length > 0;
 
   const statusLabel = useMemo(() => {
-    if (workflowState === "loading") return "Streaming mock";
-    if (workflowState === "success") return "Mock answer ready";
+    if (workflowState === "loading") return "Streaming";
+    if (workflowState === "success") return "Answer ready";
     if (workflowState === "error") return "Needs input";
     return "Ready";
   }, [workflowState]);
@@ -239,18 +108,42 @@ export function ExplainerWorkspace() {
     );
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!canSubmit) {
+      setErrorMessage("Add a question, text, or URL before asking Politik Yuk to explain it.");
       setWorkflowState("error");
       return;
     }
 
     const request = createRequest(inputType, text, url, depth, selectedLenses);
     setLastRequest(request);
+    setProgressEvents([]);
+    setExplanation(null);
+    setErrorMessage(null);
     setWorkflowState("loading");
-    window.setTimeout(() => setWorkflowState("success"), 350);
+
+    try {
+      await streamExplanation(request, (update) => {
+        setProgressEvents((current) => [...current, update.event]);
+        if (update.type === "complete") {
+          setExplanation(update.explanation);
+          setWorkflowState("success");
+        }
+        if (update.type === "error") {
+          const message =
+            typeof update.event.payload.error === "string"
+              ? update.event.payload.error
+              : update.event.message;
+          setErrorMessage(message);
+          setWorkflowState("error");
+        }
+      });
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Explain request failed.");
+      setWorkflowState("error");
+    }
   }
 
   return (
@@ -386,7 +279,7 @@ export function ExplainerWorkspace() {
             {workflowState === "error" ? (
               <div className="mt-4 flex items-start gap-2 rounded-md border border-signal/30 bg-signal/10 p-3 text-sm text-signal">
                 <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4" />
-                Add a question, text, or URL before asking Politik Yuk to explain it.
+                {errorMessage ?? "Explain request failed."}
               </div>
             ) : null}
 
@@ -425,30 +318,40 @@ export function ExplainerWorkspace() {
                 <div className="rounded-md border border-ink/10 bg-paper/40 p-4">
                   <div className="flex items-center gap-2 font-semibold">
                     <Sparkles aria-hidden="true" className="h-5 w-5 text-civic" />
-                    Mocked response surface
+                    Streaming response surface
                   </div>
                   <p className="mt-2 text-sm leading-6 text-ink/70">
-                    Submit the form to preview the structured explanation shape before live
-                    retrieval and streaming are wired in Milestone 4.
+                    Submit the form to stream placeholder graph progress from FastAPI and render
+                    the final structured response.
                   </p>
                 </div>
               ) : null}
 
               {workflowState === "loading" ? (
                 <div className="grid gap-3">
-                  {["Parsing input", "Planning retrieval", "Preparing citations"].map((step) => (
+                  {(progressEvents.length
+                    ? progressEvents
+                    : [
+                        {
+                          request_id: "pending",
+                          event_type: "request_received" as const,
+                          message: "Waiting for backend stream",
+                          payload: {},
+                        },
+                      ]
+                  ).map((streamEvent, index) => (
                     <div
                       className="flex items-center gap-3 rounded-md border border-ink/10 p-3 text-sm"
-                      key={step}
+                      key={`${streamEvent.event_type}-${index}`}
                     >
                       <Clock3 aria-hidden="true" className="h-4 w-4 text-civic" />
-                      {step}
+                      <span>{streamEvent.message}</span>
                     </div>
                   ))}
                 </div>
               ) : null}
 
-              {workflowState === "success" ? (
+              {workflowState === "success" && explanation ? (
                 <>
                   <div className="rounded-md border border-civic/25 bg-civic/5 p-4">
                     <div className="flex items-center gap-2 font-semibold text-civic">
@@ -461,7 +364,7 @@ export function ExplainerWorkspace() {
                     </p>
                   </div>
 
-                  {mockedExplanation.sections.map((section) => (
+                  {explanation.sections.map((section) => (
                     <article className="rounded-md border border-ink/10 p-4" key={section.title}>
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <h3 className="font-semibold">{section.title}</h3>
@@ -492,8 +395,8 @@ export function ExplainerWorkspace() {
                         Citations
                       </div>
                       <div className="mt-3 grid gap-3">
-                        {mockedExplanation.citations.map((citation) => {
-                          const source = mockedExplanation.sources.find(
+                        {explanation.citations.map((citation) => {
+                          const source = explanation.sources.find(
                             (item) => item.id === citation.source_id,
                           );
                           return (
@@ -515,7 +418,7 @@ export function ExplainerWorkspace() {
                         Related entities
                       </div>
                       <div className="mt-3 grid gap-3">
-                        {mockedExplanation.entities.map((entity) => (
+                        {explanation.entities.map((entity) => (
                           <button
                             className="rounded-md border border-ink/10 p-3 text-left text-sm transition hover:border-civic"
                             key={entity.id}
