@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Aya Context Engine",
+  title: "Politik Yuk",
   description: "Source-grounded political news context for young Indonesians.",
 };
 

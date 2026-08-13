@@ -1,4 +1,4 @@
-# Cohere Aya Context Engine
+# Politik Yuk
 
 Production-minded rebuild of the original Indonesian political explainer prototype into an agentic political news context engine.
 Reuters Institute's 2025 Indonesia report found social media had overtaken TV, print, and conventional online sources as the dominant route to news, while overall interest and trust were declining. An analysis of the same survey found that half of Indonesian 18–24-year-olds primarily encountered news through social media, with TikTok's use for news rising substantially. 
