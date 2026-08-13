@@ -28,6 +28,14 @@ Start local infrastructure:
 docker compose -f infra/docker-compose.yml up -d
 ```
 
+Apply the local Postgres schema and seed data:
+
+```bash
+cd backend
+.venv/bin/python -m app.persistence.cli migrate
+.venv/bin/python -m app.persistence.cli seed
+```
+
 Run the frontend:
 
 ```bash

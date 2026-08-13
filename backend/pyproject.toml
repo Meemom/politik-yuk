@@ -9,9 +9,13 @@ description = "FastAPI backend for the Aya political news context engine."
 requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.115.0",
+  "psycopg[binary]>=3.2.0",
   "pydantic-settings>=2.7.0",
   "uvicorn[standard]>=0.34.0",
 ]
+
+[project.scripts]
+politik-yuk-db = "app.persistence.cli:main"
 
 [project.optional-dependencies]
 dev = [
