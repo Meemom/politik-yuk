@@ -7,8 +7,10 @@ describe("Home", () => {
   it("renders the political context workspace", () => {
     const html = renderToStaticMarkup(React.createElement(Home));
 
-    expect(html).toContain("Understand Indonesian political news with evidence in view.");
-    expect(html).toContain("Topic, question, headline, URL, or pasted claim");
+    expect(html).toContain("Politik Yuk");
+    expect(html).toContain("Understand political news with sources, uncertainty, and context");
+    expect(html).toContain("Topic, question, headline, pasted claim, or social text");
     expect(html).toContain("Explain with sources");
+    expect(html).toContain("Screenshot text is treated as an unverified claim");
   });
 });
