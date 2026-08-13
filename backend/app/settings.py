@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "Aya Political Context Engine"
+    app_name: str = "Politik Yuk"
     environment: str = "local"
     postgres_url: str = "postgresql://aya:aya@localhost:5432/aya_context"
     redis_url: str = "redis://localhost:6379/0"
