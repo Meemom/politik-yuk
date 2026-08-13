@@ -5,7 +5,7 @@ import {
   generateExplanationWithAya,
 } from "./cohere.js";
 
-const VALID_READING_LEVELS = new Set(["smp", "sma", "mahasiswa"]);
+const VALID_READING_LEVELS = new Set(["sd", "smp", "sma", "dewasa"]);
 
 async function readJson(request) {
   const chunks = [];

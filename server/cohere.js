@@ -57,6 +57,7 @@ Struktur JSON wajib:
 }`;
 }
 
+// request body to send to cohere's API 
 export function buildCohereChatPayload({ articleText, readingLevel, model }) {
   return {
     stream: false,
