@@ -57,6 +57,10 @@ Milestone 5 defaults `MODEL_PROVIDER_BACKEND` to `fake` so local development and
 
 Milestone 7 uses Redis for TTL-aware cache entries, fixed-window rate limits, graph/session checkpoints, streamed event history, semantic retrieval candidates, and Redis Search vector index definitions. TTL classes intentionally separate breaking news, current topics, stable historical context, immutable article content, and semantic candidates so current political facts expire faster than stable provenance.
 
+## Article Ingestion
+
+Milestone 8 adds a backend ingestion pipeline for URLs: SSRF-aware validation, timed/retried fetching, HTML metadata and body extraction, content hashing, canonical URL/content deduplication, chunking, and recorded ingestion attempts for retryable failures.
+
 ## Required Checks
 
 Frontend:

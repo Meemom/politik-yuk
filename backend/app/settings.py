@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     redis_socket_timeout_seconds: float = 2
     default_rate_limit: int = 60
     default_rate_limit_window_seconds: int = 60
+    ingestion_fetch_timeout_seconds: float = 10
+    ingestion_fetch_retries: int = 2
+    ingestion_max_bytes: int = 2_000_000
+    ingestion_chunk_target_chars: int = 1_200
+    ingestion_chunk_overlap_chars: int = 120
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     model_provider_backend: str = "fake"
     text_generation_model: str = "c4ai-aya-expanse-32b"
