@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     environment: str = "local"
     postgres_url: str = "postgresql://aya:aya@localhost:5432/aya_context"
     redis_url: str = "redis://localhost:6379/0"
+    redis_key_prefix: str = "politik-yuk"
+    redis_socket_timeout_seconds: float = 2
+    default_rate_limit: int = 60
+    default_rate_limit_window_seconds: int = 60
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     model_provider_backend: str = "fake"
     text_generation_model: str = "c4ai-aya-expanse-32b"
