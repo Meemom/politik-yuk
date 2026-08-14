@@ -53,6 +53,10 @@ cd backend
 
 Milestone 5 defaults `MODEL_PROVIDER_BACKEND` to `fake` so local development and CI never require live model credentials. The router still exposes explicit routes for Aya Expanse text/structured generation, Aya Vision image analysis, multilingual E5 embeddings, and Cohere reranking through the variables documented in `.env.example`.
 
+## Redis Cache And State
+
+Milestone 7 uses Redis for TTL-aware cache entries, fixed-window rate limits, graph/session checkpoints, streamed event history, semantic retrieval candidates, and Redis Search vector index definitions. TTL classes intentionally separate breaking news, current topics, stable historical context, immutable article content, and semantic candidates so current political facts expire faster than stable provenance.
+
 ## Required Checks
 
 Frontend:
