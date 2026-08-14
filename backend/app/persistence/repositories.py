@@ -1,6 +1,8 @@
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from sqlite3 import Connection
+from typing import Any
 from uuid import UUID, uuid4
 
 from app.schemas import ClaimStatus, EntityType, SourceType, UncertaintyLevel
@@ -46,6 +48,28 @@ class IngestionAttemptRecord:
     error: str | None
     failure_kind: str | None
     retryable: bool
+
+
+@dataclass(frozen=True)
+class BackgroundJobRecord:
+    job_id: UUID
+    idempotency_key: str
+    job_type: str
+    status: str
+    payload: dict[str, object]
+    attempts: int
+    max_attempts: int
+    error: str | None = None
+    failure_kind: str | None = None
+    retryable: bool = False
+
+
+@dataclass(frozen=True)
+class WorkerHeartbeatRecord:
+    worker_id: str
+    status: str
+    last_seen_at: str
+    current_job_id: UUID | None
 
 
 class PersistenceRepository:
@@ -590,3 +614,202 @@ class PersistenceRepository:
             )
             for row in rows
         ]
+
+    def enqueue_background_job(
+        self,
+        *,
+        idempotency_key: str,
+        job_type: str,
+        payload: dict[str, object],
+        max_attempts: int = 3,
+    ) -> BackgroundJobRecord:
+        existing = self.get_background_job_by_idempotency_key(idempotency_key)
+        if existing is not None:
+            return existing
+
+        job_id = _new_id()
+        now = _utc_now()
+        self._connection.execute(
+            """
+            INSERT INTO background_jobs (
+                id,
+                idempotency_key,
+                job_type,
+                status,
+                payload,
+                retryable,
+                attempts,
+                max_attempts,
+                available_at,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                job_id,
+                idempotency_key,
+                job_type,
+                "queued",
+                json.dumps(payload, sort_keys=True),
+                False,
+                0,
+                max_attempts,
+                now,
+                now,
+                now,
+            ),
+        )
+        self._connection.commit()
+        return self.get_background_job_by_idempotency_key(idempotency_key) or BackgroundJobRecord(
+            job_id=UUID(job_id),
+            idempotency_key=idempotency_key,
+            job_type=job_type,
+            status="queued",
+            payload=payload,
+            attempts=0,
+            max_attempts=max_attempts,
+        )
+
+    def get_background_job_by_idempotency_key(
+        self,
+        idempotency_key: str,
+    ) -> BackgroundJobRecord | None:
+        row = self._connection.execute(
+            """
+            SELECT
+                id,
+                idempotency_key,
+                job_type,
+                status,
+                payload,
+                attempts,
+                max_attempts,
+                error,
+                failure_kind,
+                retryable
+            FROM background_jobs
+            WHERE idempotency_key = ?
+            """,
+            (idempotency_key,),
+        ).fetchone()
+        return _background_job_from_row(row)
+
+    def mark_background_job_running(self, job_id: UUID) -> None:
+        self._connection.execute(
+            """
+            UPDATE background_jobs
+            SET status = ?, started_at = ?, attempts = attempts + 1, updated_at = ?
+            WHERE id = ?
+            """,
+            ("running", _utc_now(), _utc_now(), str(job_id)),
+        )
+        self._connection.commit()
+
+    def mark_background_job_succeeded(self, job_id: UUID, result: dict[str, object]) -> None:
+        self._connection.execute(
+            """
+            UPDATE background_jobs
+            SET status = ?, result = ?, error = NULL, failure_kind = NULL,
+                retryable = ?, finished_at = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                "succeeded",
+                json.dumps(result, sort_keys=True),
+                False,
+                _utc_now(),
+                _utc_now(),
+                str(job_id),
+            ),
+        )
+        self._connection.commit()
+
+    def mark_background_job_failed(
+        self,
+        job_id: UUID,
+        *,
+        error: str,
+        failure_kind: str,
+        retryable: bool,
+    ) -> None:
+        status = "retryable" if retryable else "failed"
+        self._connection.execute(
+            """
+            UPDATE background_jobs
+            SET status = ?, error = ?, failure_kind = ?, retryable = ?,
+                finished_at = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (status, error, failure_kind, retryable, _utc_now(), _utc_now(), str(job_id)),
+        )
+        self._connection.commit()
+
+    def record_worker_heartbeat(
+        self,
+        *,
+        worker_id: str,
+        status: str,
+        current_job_id: UUID | None = None,
+    ) -> None:
+        existing = self._connection.execute(
+            "SELECT worker_id FROM worker_heartbeats WHERE worker_id = ?",
+            (worker_id,),
+        ).fetchone()
+        now = _utc_now()
+        if existing is None:
+            self._connection.execute(
+                """
+                INSERT INTO worker_heartbeats (worker_id, status, last_seen_at, current_job_id)
+                VALUES (?, ?, ?, ?)
+                """,
+                (worker_id, status, now, str(current_job_id) if current_job_id else None),
+            )
+        else:
+            self._connection.execute(
+                """
+                UPDATE worker_heartbeats
+                SET status = ?, last_seen_at = ?, current_job_id = ?
+                WHERE worker_id = ?
+                """,
+                (status, now, str(current_job_id) if current_job_id else None, worker_id),
+            )
+        self._connection.commit()
+
+    def worker_health(self, worker_id: str) -> WorkerHeartbeatRecord | None:
+        row = self._connection.execute(
+            """
+            SELECT worker_id, status, last_seen_at, current_job_id
+            FROM worker_heartbeats
+            WHERE worker_id = ?
+            """,
+            (worker_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return WorkerHeartbeatRecord(
+            worker_id=str(row[0]),
+            status=str(row[1]),
+            last_seen_at=str(row[2]),
+            current_job_id=UUID(str(row[3])) if row[3] is not None else None,
+        )
+
+
+def _background_job_from_row(row: tuple[Any, ...] | None) -> BackgroundJobRecord | None:
+    if row is None:
+        return None
+    payload = json.loads(str(row[4]))
+    if not isinstance(payload, dict):
+        raise ValueError("Background job payload must be an object.")
+    return BackgroundJobRecord(
+        job_id=UUID(str(row[0])),
+        idempotency_key=str(row[1]),
+        job_type=str(row[2]),
+        status=str(row[3]),
+        payload=payload,
+        attempts=int(row[5]),
+        max_attempts=int(row[6]),
+        error=str(row[7]) if row[7] is not None else None,
+        failure_kind=str(row[8]) if row[8] is not None else None,
+        retryable=bool(row[9]),
+    )
