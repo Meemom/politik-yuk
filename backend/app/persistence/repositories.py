@@ -29,6 +29,25 @@ class ArticleWithEvidence:
     citation_label: str
 
 
+@dataclass(frozen=True)
+class StoredArticle:
+    article_id: UUID
+    url: str
+    canonical_url: str | None
+    content_hash: str | None
+    body_text: str
+
+
+@dataclass(frozen=True)
+class IngestionAttemptRecord:
+    attempt_id: UUID
+    url: str
+    status: str
+    error: str | None
+    failure_kind: str | None
+    retryable: bool
+
+
 class PersistenceRepository:
     def __init__(self, connection: Connection) -> None:
         self._connection = connection
@@ -66,6 +85,25 @@ class PersistenceRepository:
         )
         self._connection.commit()
         return UUID(publisher_id)
+
+    def get_or_create_publisher(
+        self,
+        *,
+        name: str,
+        source_type: SourceType = SourceType.NEWS,
+        homepage_url: str | None = None,
+    ) -> UUID:
+        row = self._connection.execute(
+            "SELECT id FROM publishers WHERE name = ?",
+            (name,),
+        ).fetchone()
+        if row is not None:
+            return UUID(str(row[0]))
+        return self.create_publisher(
+            name=name,
+            source_type=source_type,
+            homepage_url=homepage_url,
+        )
 
     def create_article(
         self,
@@ -107,6 +145,90 @@ class PersistenceRepository:
                 source_type.value,
                 body_text,
                 retrieved_at,
+            ),
+        )
+        self._connection.commit()
+        return UUID(article_id)
+
+    def find_article_by_url_or_hash(
+        self,
+        *,
+        url: str,
+        canonical_url: str | None,
+        content_hash: str,
+    ) -> StoredArticle | None:
+        rows = self._connection.execute(
+            """
+            SELECT id, url, canonical_url, content_hash, body_text
+            FROM articles
+            WHERE url = ?
+                OR canonical_url = ?
+                OR content_hash = ?
+            ORDER BY created_at
+            """,
+            (url, canonical_url, content_hash),
+        ).fetchall()
+        if not rows:
+            return None
+        row = rows[0]
+        return StoredArticle(
+            article_id=UUID(str(row[0])),
+            url=str(row[1]),
+            canonical_url=str(row[2]) if row[2] is not None else None,
+            content_hash=str(row[3]) if row[3] is not None else None,
+            body_text=str(row[4]),
+        )
+
+    def create_ingested_article(
+        self,
+        *,
+        publisher_id: UUID,
+        url: str,
+        title: str,
+        body_text: str,
+        content_hash: str,
+        canonical_url: str | None = None,
+        author: str | None = None,
+        published_at: str | None = None,
+        retrieved_at: str | None = None,
+        source_type: SourceType = SourceType.NEWS,
+        language: str = "id",
+    ) -> UUID:
+        article_id = _new_id()
+        retrieved_value = retrieved_at or _utc_now()
+        self._connection.execute(
+            """
+            INSERT INTO articles (
+                id,
+                publisher_id,
+                url,
+                canonical_url,
+                title,
+                author,
+                published_at,
+                retrieved_at,
+                language,
+                source_type,
+                content_hash,
+                body_text,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                article_id,
+                str(publisher_id),
+                url,
+                canonical_url,
+                title,
+                author,
+                published_at,
+                retrieved_value,
+                language,
+                source_type.value,
+                content_hash,
+                body_text,
+                retrieved_value,
             ),
         )
         self._connection.commit()
@@ -401,6 +523,70 @@ class PersistenceRepository:
                 claim_text=str(row[4]),
                 evidence_text=str(row[5]),
                 citation_label=str(row[6]),
+            )
+            for row in rows
+        ]
+
+    def record_ingestion_attempt(
+        self,
+        *,
+        url: str,
+        status: str,
+        article_id: UUID | None = None,
+        duplicate_of_article_id: UUID | None = None,
+        error: str | None = None,
+        failure_kind: str | None = None,
+        retryable: bool = False,
+    ) -> UUID:
+        attempt_id = _new_id()
+        self._connection.execute(
+            """
+            INSERT INTO ingestion_attempts (
+                id,
+                url,
+                status,
+                article_id,
+                duplicate_of_article_id,
+                error,
+                failure_kind,
+                retryable,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                attempt_id,
+                url,
+                status,
+                str(article_id) if article_id is not None else None,
+                str(duplicate_of_article_id) if duplicate_of_article_id is not None else None,
+                error,
+                failure_kind,
+                retryable,
+                _utc_now(),
+            ),
+        )
+        self._connection.commit()
+        return UUID(attempt_id)
+
+    def recoverable_ingestion_failures(self) -> list[IngestionAttemptRecord]:
+        rows = self._connection.execute(
+            """
+            SELECT id, url, status, error, failure_kind, retryable
+            FROM ingestion_attempts
+            WHERE status = ? AND retryable = ?
+            ORDER BY created_at
+            """,
+            ("failed", True),
+        ).fetchall()
+        return [
+            IngestionAttemptRecord(
+                attempt_id=UUID(str(row[0])),
+                url=str(row[1]),
+                status=str(row[2]),
+                error=str(row[3]) if row[3] is not None else None,
+                failure_kind=str(row[4]) if row[4] is not None else None,
+                retryable=bool(row[5]),
             )
             for row in rows
         ]
