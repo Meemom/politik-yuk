@@ -73,6 +73,3 @@ mypy app
 pytest
 ```
 
-## Planning
-
-See [PLAN.md](./PLAN.md) for the rebuild milestones and pull request sequence.
