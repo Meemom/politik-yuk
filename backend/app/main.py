@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app.explain import router as explain_router
+from app.search_api import router as search_router
 from app.settings import get_settings
 
 
@@ -32,6 +33,7 @@ def create_app() -> FastAPI:
         )
 
     app.include_router(explain_router)
+    app.include_router(search_router)
 
     return app
 
