@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     worker_result_backend_url: str = "redis://localhost:6379/2"
     worker_default_max_attempts: int = 3
     worker_job_timeout_seconds: int = 120
+    external_search_provider: str = "disabled"
+    external_search_timeout_seconds: float = 5
+    external_search_max_results: int = 5
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     model_provider_backend: str = "fake"
     text_generation_model: str = "c4ai-aya-expanse-32b"

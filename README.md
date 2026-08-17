@@ -65,6 +65,10 @@ Milestone 8 adds a backend ingestion pipeline for URLs: SSRF-aware validation, t
 
 Milestone 9 uses Celery with Redis for background article processing. Jobs are durable and idempotent, record attempts/status/failures in Postgres, and share the same ingestion processor used in deterministic backend tests.
 
+## External Search Freshness
+
+Milestone 10 adds a provider-agnostic freshness layer for current political topics. It normalizes external search results into source candidates, caches them with freshness-aware TTLs, classifies stale/current/historical topics, and enqueues useful article URLs into the background ingestion pipeline. If no live provider is configured, `POST /api/search/freshness` returns a clear degraded response instead of silently serving uncertain stale data.
+
 ## Required Checks
 
 Frontend:
