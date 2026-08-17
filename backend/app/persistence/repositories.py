@@ -20,6 +20,13 @@ def _normalize(value: str) -> str:
     return " ".join(value.lower().split())
 
 
+def _parse_datetime(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed
+
+
 @dataclass(frozen=True)
 class ArticleWithEvidence:
     article_id: UUID
@@ -38,6 +45,21 @@ class StoredArticle:
     canonical_url: str | None
     content_hash: str | None
     body_text: str
+
+
+@dataclass(frozen=True)
+class RetrievalArticleChunk:
+    chunk_id: UUID
+    article_id: UUID
+    url: str
+    title: str
+    publisher: str
+    text: str
+    source_type: SourceType
+    retrieved_at: datetime
+    published_at: datetime | None = None
+    start_char: int | None = None
+    end_char: int | None = None
 
 
 @dataclass(frozen=True)
@@ -547,6 +569,46 @@ class PersistenceRepository:
                 claim_text=str(row[4]),
                 evidence_text=str(row[5]),
                 citation_label=str(row[6]),
+            )
+            for row in rows
+        ]
+
+    def list_article_chunks_for_retrieval(self, *, limit: int = 200) -> list[RetrievalArticleChunk]:
+        rows = self._connection.execute(
+            """
+            SELECT
+                article_chunks.id,
+                articles.id,
+                articles.url,
+                articles.title,
+                publishers.name,
+                article_chunks.text,
+                articles.source_type,
+                articles.retrieved_at,
+                articles.published_at,
+                article_chunks.start_char,
+                article_chunks.end_char
+            FROM article_chunks
+            JOIN articles ON articles.id = article_chunks.article_id
+            JOIN publishers ON publishers.id = articles.publisher_id
+            ORDER BY articles.retrieved_at DESC, article_chunks.chunk_index
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [
+            RetrievalArticleChunk(
+                chunk_id=UUID(str(row[0])),
+                article_id=UUID(str(row[1])),
+                url=str(row[2]),
+                title=str(row[3]),
+                publisher=str(row[4]),
+                text=str(row[5]),
+                source_type=SourceType(str(row[6])),
+                retrieved_at=_parse_datetime(str(row[7])),
+                published_at=_parse_datetime(str(row[8])) if row[8] is not None else None,
+                start_char=int(row[9]) if row[9] is not None else None,
+                end_char=int(row[10]) if row[10] is not None else None,
             )
             for row in rows
         ]
