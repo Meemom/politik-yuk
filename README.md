@@ -61,6 +61,10 @@ Milestone 7 uses Redis for TTL-aware cache entries, fixed-window rate limits, gr
 
 Milestone 8 adds a backend ingestion pipeline for URLs: SSRF-aware validation, timed/retried fetching, HTML metadata and body extraction, content hashing, canonical URL/content deduplication, chunking, and recorded ingestion attempts for retryable failures.
 
+## Background Workers
+
+Milestone 9 uses Celery with Redis for background article processing. Jobs are durable and idempotent, record attempts/status/failures in Postgres, and share the same ingestion processor used in deterministic backend tests.
+
 ## Required Checks
 
 Frontend:

@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     ingestion_max_bytes: int = 2_000_000
     ingestion_chunk_target_chars: int = 1_200
     ingestion_chunk_overlap_chars: int = 120
+    worker_broker_url: str = "redis://localhost:6379/1"
+    worker_result_backend_url: str = "redis://localhost:6379/2"
+    worker_default_max_attempts: int = 3
+    worker_job_timeout_seconds: int = 120
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     model_provider_backend: str = "fake"
     text_generation_model: str = "c4ai-aya-expanse-32b"
