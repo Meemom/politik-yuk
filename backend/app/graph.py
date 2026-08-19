@@ -36,8 +36,19 @@ class GraphNodeName(StrEnum):
     VECTOR_RETRIEVER = "vector_retriever"
     RERANKER = "reranker"
     SOURCE_DIVERSITY_SELECTOR = "source_diversity_selector"
+    RETRIEVAL_ESCALATOR = "retrieval_escalator"
     ANSWER_COMPOSER = "answer_composer"
     CITATION_VALIDATOR = "citation_validator"
+
+
+@dataclass(frozen=True)
+class RetrievalRouteDecision:
+    route: GraphRoute
+    needs_freshness: bool
+    needs_retrieval: bool
+    needs_external_search: bool
+    can_escalate: bool
+    reason: str
 
 
 @dataclass(frozen=True)
@@ -53,6 +64,8 @@ class ExplanationGraphState:
     request_id: UUID
     input: UserInputRequest
     route: GraphRoute | None = None
+    original_route: GraphRoute | None = None
+    route_decision: RetrievalRouteDecision | None = None
     topic: str = ""
     intent: ParsedIntent | None = None
     retrieval_plan: RetrievalPlan | None = None
@@ -111,6 +124,13 @@ class ExplanationGraph:
             async for event in self._run_node(state, node):
                 yield event
 
+        if self._should_escalate_to_deep(state):
+            async for event in self._run_node(state, self._retrieval_escalator):
+                yield event
+            for node in self._deep_retrieval_nodes():
+                async for event in self._run_node(state, node):
+                    yield event
+
         for node in final_nodes:
             async for event in self._run_node(state, node):
                 yield event
@@ -142,6 +162,9 @@ class ExplanationGraph:
     def _route_for(self, state: ExplanationGraphState) -> list[NodeHandler]:
         if state.route == GraphRoute.SHORT:
             return []
+        return self._deep_retrieval_nodes()
+
+    def _deep_retrieval_nodes(self) -> list[NodeHandler]:
         return [
             self._freshness_checker,
             self._retrieval_router,
@@ -153,8 +176,11 @@ class ExplanationGraph:
 
     async def _input_router(self, state: ExplanationGraphState) -> GraphNodeOutput:
         topic = _topic_from_request(state.input)
+        decision = _decide_retrieval_route(state.input, topic)
         state.topic = topic
-        state.route = _classify_route(state.input, topic)
+        state.route_decision = decision
+        state.route = decision.route
+        state.original_route = decision.route
         return GraphNodeOutput(
             node_name=GraphNodeName.INPUT_ROUTER,
             event_type=StreamEventType.REQUEST_RECEIVED,
@@ -162,6 +188,9 @@ class ExplanationGraph:
             payload={
                 "input_type": state.input.input_type,
                 "route": state.route.value,
+                "route_reason": decision.reason,
+                "needs_retrieval": decision.needs_retrieval,
+                "needs_external_search": decision.needs_external_search,
             },
         )
 
@@ -187,14 +216,14 @@ class ExplanationGraph:
         )
 
     async def _query_planner(self, state: ExplanationGraphState) -> GraphNodeOutput:
-        deep = state.route == GraphRoute.DEEP
+        decision = state.route_decision or _decide_retrieval_route(state.input, state.topic)
         state.retrieval_plan = RetrievalPlan(
             queries=[state.topic],
-            needs_freshness=deep,
-            needs_vector_search=deep,
-            needs_keyword_search=deep,
+            needs_freshness=decision.needs_freshness,
+            needs_vector_search=decision.needs_retrieval,
+            needs_keyword_search=decision.needs_retrieval,
             target_source_types=[SourceType.NEWS, SourceType.GOVERNMENT],
-            freshness_window_days=14 if deep else None,
+            freshness_window_days=14 if decision.needs_freshness else None,
         )
         return GraphNodeOutput(
             node_name=GraphNodeName.QUERY_PLANNER,
@@ -205,6 +234,7 @@ class ExplanationGraph:
                 "queries": state.retrieval_plan.queries,
                 "needs_freshness": state.retrieval_plan.needs_freshness,
                 "needs_vector_search": state.retrieval_plan.needs_vector_search,
+                "route_reason": decision.reason,
             },
         )
 
@@ -294,6 +324,39 @@ class ExplanationGraph:
             },
         )
 
+    async def _retrieval_escalator(self, state: ExplanationGraphState) -> GraphNodeOutput:
+        previous_route = state.route
+        state.route = GraphRoute.DEEP
+        state.route_decision = RetrievalRouteDecision(
+            route=GraphRoute.DEEP,
+            needs_freshness=True,
+            needs_retrieval=True,
+            needs_external_search=True,
+            can_escalate=False,
+            reason="short_path_had_no_evidence",
+        )
+        state.retrieval_plan = RetrievalPlan(
+            queries=[state.topic],
+            needs_freshness=True,
+            needs_vector_search=True,
+            needs_keyword_search=True,
+            target_source_types=[SourceType.NEWS, SourceType.GOVERNMENT],
+            freshness_window_days=14,
+        )
+        return GraphNodeOutput(
+            node_name=GraphNodeName.RETRIEVAL_ESCALATOR,
+            event_type=StreamEventType.RETRIEVAL_PLANNED,
+            message="Escalating to deep retrieval",
+            payload={
+                "from_route": previous_route.value if previous_route is not None else None,
+                "route": state.route.value,
+                "reason": state.route_decision.reason,
+                "needs_freshness": True,
+                "needs_retrieval": True,
+                "needs_external_search": True,
+            },
+        )
+
     async def _answer_composer(self, state: ExplanationGraphState) -> GraphNodeOutput:
         state.explanation = compose_grounded_explanation(
             request_id=state.request_id,
@@ -314,6 +377,12 @@ class ExplanationGraph:
                 "source_count": len(state.explanation.sources),
             },
         )
+
+    def _should_escalate_to_deep(self, state: ExplanationGraphState) -> bool:
+        decision = state.route_decision
+        if decision is None or state.route != GraphRoute.SHORT or not decision.can_escalate:
+            return False
+        return state.retrieval_result is None or not state.retrieval_result.evidence
 
     async def _citation_validator(self, state: ExplanationGraphState) -> GraphNodeOutput:
         if state.explanation is not None:
@@ -377,18 +446,46 @@ def _stream_event(state: ExplanationGraphState, output: GraphNodeOutput) -> Stre
     )
 
 
-def _classify_route(request: UserInputRequest, topic: str) -> GraphRoute:
-    current_terms = {"hari ini", "terbaru", "breaking", "update", "putusan", "rapat"}
-    simple_terms = {"siapa", "apa itu", "profil"}
-    normalized = topic.casefold()
+def _decide_retrieval_route(request: UserInputRequest, topic: str) -> RetrievalRouteDecision:
     deep_input_types = {"headline", "url", "text", "screenshot"}
     if request.depth == "in_depth" or request.input_type in deep_input_types:
-        return GraphRoute.DEEP
-    if any(term in normalized for term in current_terms):
-        return GraphRoute.DEEP
-    if any(term in normalized for term in simple_terms):
-        return GraphRoute.SHORT
-    return GraphRoute.DEEP if len(topic.split()) > 8 else GraphRoute.SHORT
+        return _deep_route_decision("depth_or_input_requires_evidence")
+    if request.input_type == "question" and _looks_like_narrow_lookup(topic):
+        return RetrievalRouteDecision(
+            route=GraphRoute.SHORT,
+            needs_freshness=False,
+            needs_retrieval=False,
+            needs_external_search=False,
+            can_escalate=False,
+            reason="narrow_lookup_question",
+        )
+    if request.input_type == "topic" and len(topic.split()) <= 3:
+        return RetrievalRouteDecision(
+            route=GraphRoute.SHORT,
+            needs_freshness=False,
+            needs_retrieval=False,
+            needs_external_search=False,
+            can_escalate=True,
+            reason="compact_topic_try_short_first",
+        )
+    return _deep_route_decision("default_political_context_requires_evidence")
+
+
+def _deep_route_decision(reason: str) -> RetrievalRouteDecision:
+    return RetrievalRouteDecision(
+        route=GraphRoute.DEEP,
+        needs_freshness=True,
+        needs_retrieval=True,
+        needs_external_search=True,
+        can_escalate=False,
+        reason=reason,
+    )
+
+
+def _looks_like_narrow_lookup(topic: str) -> bool:
+    normalized = " ".join(topic.casefold().split())
+    lookup_prefixes = ("siapa ", "apa itu ", "profil ")
+    return len(normalized.split()) <= 6 and normalized.startswith(lookup_prefixes)
 
 
 def _topic_from_request(request: UserInputRequest) -> str:
@@ -414,6 +511,8 @@ def _state_snapshot(state: ExplanationGraphState) -> dict[str, object]:
     return {
         "request_id": str(state.request_id),
         "route": state.route.value if state.route is not None else None,
+        "original_route": state.original_route.value if state.original_route is not None else None,
+        "route_decision": _route_decision_payload(state.route_decision),
         "topic": state.topic,
         "intent": state.intent.model_dump(mode="json") if state.intent is not None else None,
         "retrieval_plan": state.retrieval_plan.model_dump(mode="json")
@@ -439,6 +538,8 @@ def _state_snapshot(state: ExplanationGraphState) -> dict[str, object]:
 def _graph_summary(state: ExplanationGraphState) -> dict[str, object]:
     return {
         "route": state.route.value if state.route is not None else None,
+        "original_route": state.original_route.value if state.original_route is not None else None,
+        "route_decision": _route_decision_payload(state.route_decision),
         "node_outputs": [
             {
                 "node_name": output.node_name.value,
@@ -449,4 +550,17 @@ def _graph_summary(state: ExplanationGraphState) -> dict[str, object]:
             for output in state.node_outputs
         ],
         "warnings": state.warnings,
+    }
+
+
+def _route_decision_payload(decision: RetrievalRouteDecision | None) -> dict[str, object] | None:
+    if decision is None:
+        return None
+    return {
+        "route": decision.route.value,
+        "needs_freshness": decision.needs_freshness,
+        "needs_retrieval": decision.needs_retrieval,
+        "needs_external_search": decision.needs_external_search,
+        "can_escalate": decision.can_escalate,
+        "reason": decision.reason,
     }

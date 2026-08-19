@@ -93,6 +93,8 @@ def test_simple_entity_question_uses_short_path_and_skips_retrieval() -> None:
     node_names = [node["node_name"] for node in graph_payload["node_outputs"]]
 
     assert graph_payload["route"] == GraphRoute.SHORT
+    assert graph_payload["original_route"] == GraphRoute.SHORT
+    assert graph_payload["route_decision"]["reason"] == "narrow_lookup_question"
     assert GraphNodeName.FRESHNESS_CHECKER not in node_names
     assert GraphNodeName.KEYWORD_RETRIEVER not in node_names
     assert events[-1].payload["explanation"]["citations"] == []
@@ -130,6 +132,75 @@ def test_current_topic_uses_deep_path_with_freshness_and_retrieval_nodes() -> No
     assert freshness.calls == 1
     assert retrieval.calls == 1
     assert events[-1].payload["explanation"]["sources"][0]["publisher"] == "Example News"
+
+
+def test_explanatory_question_uses_deep_path_even_in_quick_mode() -> None:
+    freshness = FakeFreshnessProbe()
+    retrieval = FakeRetrievalRunner(evidence=[make_candidate()])
+    redis = InMemoryRedis()
+    graph = ExplanationGraph(
+        checkpoints=SessionCheckpointStore(redis, key_prefix="test"),
+        freshness_probe=freshness,
+        retrieval_runner=retrieval,
+    )
+
+    events = asyncio.run(
+        collect_events(
+            graph,
+            UserInputRequest(
+                input_type="question",
+                text="Kenapa mahasiswa protes revisi UU TNI?",
+                depth="quick",
+                lenses=[],
+            ),
+        )
+    )
+
+    graph_payload = events[-1].payload["graph"]
+
+    assert graph_payload["route"] == GraphRoute.DEEP
+    assert graph_payload["original_route"] == GraphRoute.DEEP
+    assert (
+        graph_payload["route_decision"]["reason"]
+        == "default_political_context_requires_evidence"
+    )
+    assert freshness.calls == 1
+    assert retrieval.calls == 1
+    assert events[-1].payload["explanation"]["sources"][0]["publisher"] == "Example News"
+
+
+def test_short_compact_topic_escalates_to_deep_once_when_evidence_is_empty() -> None:
+    freshness = FakeFreshnessProbe()
+    retrieval = FakeRetrievalRunner(evidence=[make_candidate()])
+    redis = InMemoryRedis()
+    graph = ExplanationGraph(
+        checkpoints=SessionCheckpointStore(redis, key_prefix="test"),
+        freshness_probe=freshness,
+        retrieval_runner=retrieval,
+    )
+
+    events = asyncio.run(
+        collect_events(
+            graph,
+            UserInputRequest(
+                input_type="topic",
+                text="UU TNI",
+                depth="quick",
+                lenses=[],
+            ),
+        )
+    )
+
+    graph_payload = events[-1].payload["graph"]
+    node_names = [node["node_name"] for node in graph_payload["node_outputs"]]
+
+    assert graph_payload["original_route"] == GraphRoute.SHORT
+    assert graph_payload["route"] == GraphRoute.DEEP
+    assert graph_payload["route_decision"]["reason"] == "short_path_had_no_evidence"
+    assert node_names.count(GraphNodeName.RETRIEVAL_ESCALATOR) == 1
+    assert freshness.calls == 1
+    assert retrieval.calls == 1
+    assert events[-1].payload["explanation"]["citations"]
 
 
 def test_graph_checkpoints_and_events_are_stored() -> None:
