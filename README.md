@@ -73,6 +73,10 @@ Milestone 10 adds a provider-agnostic freshness layer for current political topi
 
 Milestone 11 adds a hybrid retrieval layer that merges BM25 keyword matches, vector candidates, and external search candidates, then reranks and scores evidence by relevance, recency, source credibility, diversity, and information gain. Returned evidence candidates include article/source metadata needed for citation display.
 
+## Graph Orchestration
+
+Milestone 12 replaces the placeholder explanation path with a typed graph runner. It records node outputs and checkpoints, routes simple requests through a short path, sends current or complex topics through freshness/retrieval nodes, and streams graph metadata through the existing SSE API. Set `GRAPH_CHECKPOINT_BACKEND=redis` to persist checkpoints in Redis outside local deterministic tests.
+
 ## Required Checks
 
 Frontend:
