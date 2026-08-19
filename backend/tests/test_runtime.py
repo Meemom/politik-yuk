@@ -52,7 +52,11 @@ def test_runtime_redis_allows_memory_only_for_test_or_explicit_local_setting() -
 def test_runtime_redis_requires_live_redis_for_live_provider_paths() -> None:
     with pytest.raises(RuntimeDependencyError):
         runtime_redis(
-            Settings(redis_url="redis://localhost:1/0"),
+            Settings(
+                environment="production",
+                redis_url="redis://localhost:1/0",
+                allow_inmemory_redis=False,
+            ),
             purpose="external search cache",
             require_live=True,
         )
@@ -79,7 +83,9 @@ def test_readiness_reports_missing_live_dependencies_without_secrets() -> None:
             external_search_provider="tavily",
             cohere_api_key="",
             tavily_api_key="",
+            environment="production",
             redis_url="redis://localhost:1/0",
+            allow_inmemory_redis=False,
         )
     )
 
