@@ -77,6 +77,10 @@ Milestone 11 adds a hybrid retrieval layer that merges BM25 keyword matches, vec
 
 Milestone 12 replaces the placeholder explanation path with a typed graph runner. It records node outputs and checkpoints, routes simple requests through a short path, sends current or complex topics through freshness/retrieval nodes, and streams graph metadata through the existing SSE API. Set `GRAPH_CHECKPOINT_BACKEND=redis` to persist checkpoints in Redis outside local deterministic tests.
 
+## Evidence-Grounded Composition
+
+Milestone 13 composes answer sections only from retrieved evidence candidates and validates every citation against real evidence/source IDs. Unsupported factual claims are rewritten as unverified with high uncertainty, while depth and lens controls change presentation without changing factual conclusions.
+
 ## Required Checks
 
 Frontend:

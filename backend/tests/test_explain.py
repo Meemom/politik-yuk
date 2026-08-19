@@ -42,7 +42,8 @@ def test_explain_streams_progress_and_final_answer() -> None:
     assert event_types[-1] == "complete"
     assert isinstance(final_payload, dict)
     assert final_payload["explanation"]["sections"][0]["title"] == "TL;DR"
-    assert final_payload["explanation"]["citations"][0]["label"] == "1"
+    assert final_payload["explanation"]["citations"] == []
+    assert final_payload["explanation"]["claims"][0]["status"] == "unverified"
     assert final_payload["graph"]["route"] in {"short", "deep"}
     assert final_payload["graph"]["node_outputs"][0]["node_name"] == "input_router"
 
