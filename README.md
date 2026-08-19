@@ -69,6 +69,10 @@ Milestone 9 uses Celery with Redis for background article processing. Jobs are d
 
 Milestone 10 adds a provider-agnostic freshness layer for current political topics. It normalizes external search results into source candidates, caches them with freshness-aware TTLs, classifies stale/current/historical topics, and enqueues useful article URLs into the background ingestion pipeline. If no live provider is configured, `POST /api/search/freshness` returns a clear degraded response instead of silently serving uncertain stale data.
 
+## Hybrid Retrieval
+
+Milestone 11 adds a hybrid retrieval layer that merges BM25 keyword matches, vector candidates, and external search candidates, then reranks and scores evidence by relevance, recency, source credibility, diversity, and information gain. Returned evidence candidates include article/source metadata needed for citation display.
+
 ## Required Checks
 
 Frontend:
