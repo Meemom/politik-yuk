@@ -153,7 +153,7 @@ def test_tavily_provider_maps_news_results_and_domain_policy() -> None:
 
     results = provider.search("update pemilu terbaru", max_results=3)
 
-    assert seen_payload["topic"] == "news"
+    assert seen_payload["topic"] == "general"
     assert seen_payload["include_domains"] == ["kpu.go.id"]
     assert results[0].publisher == "kpu.go.id"
     assert results[0].source_type == SourceType.GOVERNMENT

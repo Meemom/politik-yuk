@@ -450,6 +450,8 @@ def _decide_retrieval_route(request: UserInputRequest, topic: str) -> RetrievalR
     deep_input_types = {"headline", "url", "text", "screenshot"}
     if request.depth == "in_depth" or request.input_type in deep_input_types:
         return _deep_route_decision("depth_or_input_requires_evidence")
+    if _needs_current_evidence(topic):
+        return _deep_route_decision("current_context_requires_evidence")
     if request.input_type == "question" and _looks_like_narrow_lookup(topic):
         return RetrievalRouteDecision(
             route=GraphRoute.SHORT,
@@ -486,6 +488,20 @@ def _looks_like_narrow_lookup(topic: str) -> bool:
     normalized = " ".join(topic.casefold().split())
     lookup_prefixes = ("siapa ", "apa itu ", "profil ")
     return len(normalized.split()) <= 6 and normalized.startswith(lookup_prefixes)
+
+
+def _needs_current_evidence(topic: str) -> bool:
+    normalized = " ".join(topic.casefold().split())
+    current_markers = (
+        "barusan",
+        "hari ini",
+        "kini",
+        "saat ini",
+        "sekarang",
+        "terbaru",
+        "update",
+    )
+    return any(marker in normalized for marker in current_markers)
 
 
 def _topic_from_request(request: UserInputRequest) -> str:

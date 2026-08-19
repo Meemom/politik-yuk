@@ -169,6 +169,37 @@ def test_explanatory_question_uses_deep_path_even_in_quick_mode() -> None:
     assert events[-1].payload["explanation"]["sources"][0]["publisher"] == "Example News"
 
 
+def test_current_lookup_question_uses_deep_path_even_when_short() -> None:
+    freshness = FakeFreshnessProbe()
+    retrieval = FakeRetrievalRunner(evidence=[make_candidate()])
+    redis = InMemoryRedis()
+    graph = ExplanationGraph(
+        checkpoints=SessionCheckpointStore(redis, key_prefix="test"),
+        freshness_probe=freshness,
+        retrieval_runner=retrieval,
+    )
+
+    events = asyncio.run(
+        collect_events(
+            graph,
+            UserInputRequest(
+                input_type="question",
+                text="siapa presiden indonesia sekarang?",
+                depth="quick",
+                lenses=[],
+            ),
+        )
+    )
+
+    graph_payload = events[-1].payload["graph"]
+
+    assert graph_payload["route"] == GraphRoute.DEEP
+    assert graph_payload["route_decision"]["reason"] == "current_context_requires_evidence"
+    assert freshness.calls == 1
+    assert retrieval.calls == 1
+    assert events[-1].payload["explanation"]["citations"]
+
+
 def test_short_compact_topic_escalates_to_deep_once_when_evidence_is_empty() -> None:
     freshness = FakeFreshnessProbe()
     retrieval = FakeRetrievalRunner(evidence=[make_candidate()])

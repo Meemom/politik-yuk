@@ -33,17 +33,17 @@ class TavilySearchProvider:
     def search(self, query: str, *, max_results: int) -> list[ExternalSearchResult]:
         payload = {
             "query": query,
-            "topic": "news",
+            "topic": "general",
             "search_depth": self._search_depth,
             "max_results": max_results,
             "include_answer": False,
             "include_raw_content": False,
             "include_images": False,
-            "include_favicon": False,
-            "include_domains": self._include_domains,
-            "exclude_domains": self._exclude_domains,
-            "safe_search": True,
         }
+        if self._include_domains:
+            payload["include_domains"] = self._include_domains
+        if self._exclude_domains:
+            payload["exclude_domains"] = self._exclude_domains
         response = self._post_json("/search", payload)
         raw_results = response.get("results")
         if not isinstance(raw_results, list):
