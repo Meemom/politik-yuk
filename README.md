@@ -49,37 +49,37 @@ cd backend
 .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## Model Provider Configuration
+## AI Model Routing
 
-Milestone 5 defaults `MODEL_PROVIDER_BACKEND` to `fake` so local development and CI never require live model credentials. The router still exposes explicit routes for Aya Expanse text/structured generation, Aya Vision image analysis, multilingual E5 embeddings, and Cohere reranking through the variables documented in `.env.example`.
+Politik Yuk keeps model usage behind provider interfaces so graph nodes and product logic are not tied to one SDK. Local development and required CI default `MODEL_PROVIDER_BACKEND` to `fake`; set `MODEL_PROVIDER_BACKEND=cohere` and `COHERE_API_KEY` to route Aya text and vision calls, `embed-v4.0` embeddings, and `rerank-v4.0-fast` reranking through Cohere.
 
 ## Redis Cache And State
 
-Milestone 7 uses Redis for TTL-aware cache entries, fixed-window rate limits, graph/session checkpoints, streamed event history, semantic retrieval candidates, and Redis Search vector index definitions. TTL classes intentionally separate breaking news, current topics, stable historical context, immutable article content, and semantic candidates so current political facts expire faster than stable provenance.
+Redis supports TTL-aware cache entries, fixed-window rate limits, graph/session checkpoints, streamed event history, semantic retrieval candidates, and Redis Search vector index definitions. Live provider paths require real Redis outside tests unless `ALLOW_INMEMORY_REDIS=true` is explicitly set for local development.
 
 ## Article Ingestion
 
-Milestone 8 adds a backend ingestion pipeline for URLs: SSRF-aware validation, timed/retried fetching, HTML metadata and body extraction, content hashing, canonical URL/content deduplication, chunking, and recorded ingestion attempts for retryable failures.
+The backend can ingest URLs through SSRF-aware validation, timed and retried fetching, HTML metadata and body extraction, content hashing, canonical URL and content deduplication, chunking, and recorded ingestion attempts for retryable failures.
 
 ## Background Workers
 
-Milestone 9 uses Celery with Redis for background article processing. Jobs are durable and idempotent, record attempts/status/failures in Postgres, and share the same ingestion processor used in deterministic backend tests.
+Celery with Redis powers background article processing. Jobs are durable and idempotent, record attempts, status, and failures in Postgres, and share the same ingestion processor used in deterministic backend tests.
 
 ## External Search Freshness
 
-Milestone 10 adds a provider-agnostic freshness layer for current political topics. It normalizes external search results into source candidates, caches them with freshness-aware TTLs, classifies stale/current/historical topics, and enqueues useful article URLs into the background ingestion pipeline. If no live provider is configured, `POST /api/search/freshness` returns a clear degraded response instead of silently serving uncertain stale data.
+The freshness layer retrieves and normalizes external search results into source candidates, caches them with freshness-aware TTLs, classifies stale/current/historical topics, and enqueues useful article URLs into the background ingestion pipeline. Set `EXTERNAL_SEARCH_PROVIDER=tavily` with `TAVILY_API_KEY` for the primary live search path, or `EXTERNAL_SEARCH_PROVIDER=brave` with `BRAVE_SEARCH_API_KEY` for the optional fallback adapter. If no live provider is configured, `POST /api/search/freshness` returns a clear degraded response instead of silently serving uncertain stale data.
 
 ## Hybrid Retrieval
 
-Milestone 11 adds a hybrid retrieval layer that merges BM25 keyword matches, vector candidates, and external search candidates, then reranks and scores evidence by relevance, recency, source credibility, diversity, and information gain. Returned evidence candidates include article/source metadata needed for citation display.
+Hybrid retrieval merges BM25 keyword matches, vector candidates, and external search candidates, then reranks and scores evidence by relevance, recency, source credibility, diversity, and information gain. Returned evidence candidates include article and source metadata needed for citation display.
 
 ## Graph Orchestration
 
-Milestone 12 replaces the placeholder explanation path with a typed graph runner. It records node outputs and checkpoints, routes simple requests through a short path, sends current or complex topics through freshness/retrieval nodes, and streams graph metadata through the existing SSE API. Set `GRAPH_CHECKPOINT_BACKEND=redis` to persist checkpoints in Redis outside local deterministic tests.
+The explanation API runs through a typed graph runner. It records node outputs and checkpoints, routes simple requests through a short path, sends current or complex topics through freshness and retrieval nodes, and streams graph metadata through the existing SSE API. Set `GRAPH_CHECKPOINT_BACKEND=redis` to persist checkpoints in Redis outside local deterministic tests.
 
 ## Evidence-Grounded Composition
 
-Milestone 13 composes answer sections only from retrieved evidence candidates and validates every citation against real evidence/source IDs. Unsupported factual claims are rewritten as unverified with high uncertainty, while depth and lens controls change presentation without changing factual conclusions.
+Answer sections are composed only from retrieved evidence candidates, and every citation is validated against real evidence and source IDs. Unsupported factual claims are rewritten as unverified with high uncertainty, while depth and lens controls change presentation without changing factual conclusions.
 
 ## Required Checks
 

@@ -3,12 +3,9 @@ from datetime import datetime
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from app.cache.redis_client import RedisConnectionError, create_redis_client
-from app.cache.store import CacheStore, InMemoryRedis
+from app.runtime import build_fresh_search_service
 from app.search import (
-    DisabledExternalSearchProvider,
     FreshnessClass,
-    FreshSearchService,
     SourceCandidate,
 )
 from app.settings import get_settings
@@ -66,18 +63,7 @@ def _candidate_response(candidate: SourceCandidate) -> SourceCandidateResponse:
 @router.post("/freshness", response_model=FreshSearchResponseModel)
 async def fresh_search(request: FreshSearchRequest) -> FreshSearchResponseModel:
     settings = get_settings()
-    if settings.external_search_provider == "disabled":
-        redis = InMemoryRedis()
-    else:
-        try:
-            redis = create_redis_client(settings)
-        except RedisConnectionError:
-            redis = InMemoryRedis()
-    cache = CacheStore(redis, key_prefix=settings.redis_key_prefix)
-    service = FreshSearchService(
-        provider=DisabledExternalSearchProvider(),
-        cache=cache,
-    )
+    service = build_fresh_search_service(settings)
     max_results = min(request.max_results, settings.external_search_max_results)
     result = service.search(request.query, max_results=max_results)
     return FreshSearchResponseModel(

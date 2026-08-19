@@ -22,16 +22,23 @@ class Settings(BaseSettings):
     worker_default_max_attempts: int = 3
     worker_job_timeout_seconds: int = 120
     external_search_provider: str = "disabled"
+    tavily_api_key: str | None = None
+    brave_search_api_key: str | None = None
+    external_search_include_domains: str = ""
+    external_search_exclude_domains: str = ""
+    external_search_depth: str = "basic"
     external_search_timeout_seconds: float = 5
     external_search_max_results: int = 5
     graph_checkpoint_backend: str = "memory"
+    allow_inmemory_redis: bool = False
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     model_provider_backend: str = "fake"
+    cohere_api_key: str | None = None
     text_generation_model: str = "c4ai-aya-expanse-32b"
     structured_generation_model: str = "c4ai-aya-expanse-32b"
     image_analysis_model: str = "c4ai-aya-vision-32b"
-    embedding_model: str = "intfloat/multilingual-e5-large-instruct"
-    reranking_model: str = "cohere-rerank"
+    embedding_model: str = "embed-v4.0"
+    reranking_model: str = "rerank-v4.0-fast"
     model_timeout_seconds: float = 30
     model_max_retries: int = 2
 

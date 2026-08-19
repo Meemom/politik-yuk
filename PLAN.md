@@ -443,6 +443,64 @@ CI must run the same deterministic checks on pull requests. Heavier retrieval, m
 
 **Depends On:** Milestones 11 and 12.
 
+## Milestone 13.5: Live Provider Integrations and Production Redis
+
+**Objective:** Replace fake model/search providers and memory-backed live paths with real, configurable production services while keeping deterministic test doubles for CI.
+
+**Provider Decision:**
+
+- Use Cohere as the primary model provider because the product is centered on Aya, multilingual Indonesian explanations, embeddings, and reranking.
+- Use Tavily as the primary external search provider because it is optimized for agentic/RAG search, returns LLM-ready snippets, supports news/currentness controls, supports domain filters, and can optionally extract clean page content.
+- Add Brave Search as an optional fallback adapter, not the first implementation, because it is a strong general web/news search API but returns more search-engine-shaped results that usually need extra extraction and normalization work before evidence synthesis.
+- Keep fake providers only for local deterministic tests and CI.
+
+**Scope:**
+
+- Implement a Cohere-backed provider bundle for:
+  - text generation through Aya Expanse
+  - structured generation through Aya Expanse with schema validation
+  - image analysis through Aya Vision
+  - embeddings through `embed-v4.0`
+  - reranking through `rerank-v4.0-fast`
+- Implement a Tavily-backed external search provider with:
+  - `topic=news` for current political queries
+  - recency/time-range controls from the freshness classifier
+  - Indonesian/public-interest domain include and exclude lists
+  - provider scores mapped into source-candidate scores
+  - explicit handling for authentication, quota, timeout, rate-limit, and malformed-response failures
+- Add an optional Brave Search adapter behind the same `ExternalSearchProvider` interface for fallback or later comparison.
+- Wire provider selection through settings and environment variables:
+  - `MODEL_PROVIDER_BACKEND=cohere|fake`
+  - `COHERE_API_KEY`
+  - `EXTERNAL_SEARCH_PROVIDER=tavily|brave|disabled`
+  - `TAVILY_API_KEY`
+  - `BRAVE_SEARCH_API_KEY`
+  - provider timeout, retry, max-results, and domain-policy settings
+- Replace fake in-memory Redis usage in live backend paths:
+  - use real Redis for freshness cache, graph checkpoints, rate limits, semantic cache, and worker broker/result backend outside tests
+  - allow `InMemoryRedis` only when `ENVIRONMENT=test` or an explicit local test setting is enabled
+  - return a clear degraded health/status response when Redis is required but unavailable
+- Add dependency injection factories so API routes and graph construction choose real providers once configured instead of hardcoding disabled/fake implementations.
+- Extend `/health` or add `/ready` to report model provider, search provider, Postgres, Redis, worker, and configuration readiness without exposing secrets.
+- Add provider contract tests with mocked HTTP responses and disabled-by-default smoke tests for real credentials.
+- Document local `.env` setup, CI secrets, production secrets, and how to run optional live-provider smoke tests.
+- Update CI/CD to preserve deterministic required checks while adding a manual or secret-gated provider smoke workflow:
+  - required PR CI uses fake providers and local service containers
+  - optional workflow validates Cohere, Tavily, Redis, Postgres, and deployment readiness when secrets are present
+  - deployment workflow blocks production promotion if required provider readiness checks fail
+
+**Acceptance Criteria:**
+
+- Setting `MODEL_PROVIDER_BACKEND=cohere` sends model-router calls to Cohere and preserves typed timeout/retry/error behavior.
+- Setting `EXTERNAL_SEARCH_PROVIDER=tavily` returns fresh source candidates for current political topics and triggers ingestion for useful URLs.
+- `EXTERNAL_SEARCH_PROVIDER=disabled` still degrades clearly without pretending search succeeded.
+- Live API and graph paths no longer silently use `InMemoryRedis` when Redis is configured for production.
+- Tests still run without live API keys.
+- CI includes deterministic fake-provider checks, and CI/CD includes a documented secret-gated provider smoke path.
+- Health/readiness output makes missing Redis, model, search, worker, or database dependencies visible before deployment.
+
+**Depends On:** Milestones 5, 7, 10, 11, 12, and 13.
+
 ## Milestone 14: Claim Extraction and Evidence Mapping
 
 **Objective:** Persist and classify claims so the system can reason across sources and topics.
@@ -782,21 +840,23 @@ CI must run the same deterministic checks on pull requests. Heavier retrieval, m
 
 ## First Production MVP
 
-The first serious release should include Milestones 1 through 13.
+The first serious release should include Milestones 1 through 13.5.
 
 That release should support:
 
 - topic, question, headline, pasted text, and URL input
 - Quick Read and In Depth modes
 - analytical lens selection
-- fresh external retrieval
+- fresh external retrieval through a live search provider
 - hybrid retrieval over ingested sources
 - LangGraph routing
+- live model routing through Cohere
+- production Redis for cache, checkpoints, rate limits, workers, and vector index readiness
 - evidence-grounded explanations
 - claim-level citations
 - explicit uncertainty and disagreement
 - streaming frontend responses
-- CI checks for frontend and backend
+- CI checks for frontend and backend, plus secret-gated provider smoke checks
 
 It can defer:
 

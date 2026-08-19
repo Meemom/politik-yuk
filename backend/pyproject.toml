@@ -10,6 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
   "celery>=5.4.0",
   "fastapi>=0.115.0",
+  "httpx>=0.28.0",
   "psycopg[binary]>=3.2.0",
   "pydantic-settings>=2.7.0",
   "redis>=5.2.0",
@@ -21,7 +22,6 @@ politik-yuk-db = "app.persistence.cli:main"
 
 [project.optional-dependencies]
 dev = [
-  "httpx>=0.28.0",
   "mypy>=1.14.0",
   "pytest>=8.3.0",
   "ruff>=0.8.0",
@@ -45,3 +45,6 @@ plugins = []
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+  "live_provider_smoke: optional tests that call configured external providers",
+]
