@@ -1,31 +1,21 @@
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Protocol
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from app.cache.checkpoints import SessionCheckpoint, SessionCheckpointStore
 from app.cache.ttl import TtlClass
-from app.retrieval import EvidenceCandidate, RetrievalResult
+from app.composition import compose_grounded_explanation, validate_explanation_citations
+from app.retrieval import RetrievalResult
 from app.schemas import (
     AnalyticalLens,
-    Citation,
-    Claim,
-    ClaimStatus,
-    Entity,
-    EntityType,
-    EvidencePassage,
     ExplanationResponse,
-    ExplanationSection,
-    ExplanationSectionType,
     ParsedIntent,
     RetrievalPlan,
-    Source,
     SourceType,
     StreamEvent,
     StreamEventType,
-    UncertaintyLevel,
     UserInputRequest,
 )
 from app.search import FreshnessClass, FreshSearchResponse
@@ -305,7 +295,16 @@ class ExplanationGraph:
         )
 
     async def _answer_composer(self, state: ExplanationGraphState) -> GraphNodeOutput:
-        state.explanation = _compose_explanation(state)
+        state.explanation = compose_grounded_explanation(
+            request_id=state.request_id,
+            request=state.input,
+            intent=state.intent or _fallback_intent(state),
+            topic=state.topic,
+            evidence_candidates=state.retrieval_result.evidence
+            if state.retrieval_result is not None
+            else [],
+            warnings=state.warnings,
+        )
         return GraphNodeOutput(
             node_name=GraphNodeName.ANSWER_COMPOSER,
             event_type=StreamEventType.ANSWER_COMPOSING,
@@ -317,6 +316,10 @@ class ExplanationGraph:
         )
 
     async def _citation_validator(self, state: ExplanationGraphState) -> GraphNodeOutput:
+        if state.explanation is not None:
+            validation = validate_explanation_citations(state.explanation)
+            state.explanation = validation.explanation
+            state.warnings.extend(validation.warnings)
         citation_count = len(state.explanation.citations) if state.explanation is not None else 0
         return GraphNodeOutput(
             node_name=GraphNodeName.CITATION_VALIDATOR,
@@ -324,7 +327,8 @@ class ExplanationGraph:
             message="Validated citations",
             payload={
                 "citation_count": citation_count,
-                "valid": citation_count > 0,
+                "valid": state.explanation is not None
+                and not validate_explanation_citations(state.explanation).warnings,
             },
         )
 
@@ -393,192 +397,6 @@ def _topic_from_request(request: UserInputRequest) -> str:
     if request.input_type == "screenshot":
         return request.text or "uploaded screenshot"
     return request.text or "political topic"
-
-
-def _compose_explanation(state: ExplanationGraphState) -> ExplanationResponse:
-    retrieved_at = datetime.now(UTC)
-    evidence_candidates = state.retrieval_result.evidence if state.retrieval_result else []
-    if evidence_candidates:
-        return _compose_retrieved_explanation(state, evidence_candidates, retrieved_at)
-    return _compose_contract_explanation(state, retrieved_at)
-
-
-def _compose_retrieved_explanation(
-    state: ExplanationGraphState,
-    candidates: list[EvidenceCandidate],
-    retrieved_at: datetime,
-) -> ExplanationResponse:
-    sources: list[Source] = []
-    evidence: list[EvidencePassage] = []
-    citations: list[Citation] = []
-    for index, candidate in enumerate(candidates, start=1):
-        source_id = candidate.source_id
-        evidence_id = candidate.evidence_id
-        sources.append(
-            Source(
-                id=source_id,
-                url=candidate.url,
-                title=candidate.title,
-                publisher=candidate.publisher,
-                published_at=candidate.published_at,
-                retrieved_at=candidate.retrieved_at,
-                source_type=candidate.source_type,
-            )
-        )
-        evidence.append(
-            EvidencePassage(
-                id=evidence_id,
-                source_id=source_id,
-                text=candidate.text,
-                start_char=candidate.start_char,
-                end_char=candidate.end_char,
-                relevance_score=max(min(candidate.final_score or candidate.relevance_score, 1), 0),
-            )
-        )
-        citations.append(
-            Citation(
-                source_id=source_id,
-                evidence_passage_id=evidence_id,
-                label=str(index),
-                quote=candidate.text[:1_000],
-            )
-        )
-
-    first_citation_id = citations[0].id
-    return ExplanationResponse(
-        request_id=state.request_id,
-        input=state.input,
-        intent=state.intent or _fallback_intent(state),
-        sections=[
-            ExplanationSection(
-                section_type=ExplanationSectionType.TLDR,
-                title="TL;DR",
-                body=(
-                    "Politik Yuk found retrievable evidence and prepared it for "
-                    "grounded synthesis."
-                ),
-                citation_ids=[first_citation_id],
-                uncertainty=UncertaintyLevel.MEDIUM,
-            ),
-            ExplanationSection(
-                section_type=ExplanationSectionType.ESSENTIAL_CONTEXT,
-                title="Essential context",
-                body=(
-                    "This graph response exposes the evidence set and graph route. Milestone 13 "
-                    "will replace this deterministic composition with claim-grounded generation."
-                ),
-                citation_ids=[first_citation_id],
-                uncertainty=UncertaintyLevel.MEDIUM,
-            ),
-        ],
-        sources=sources,
-        evidence=evidence,
-        citations=citations,
-        claims=[
-            Claim(
-                text="Retrieved evidence is available for later claim-grounded answer composition.",
-                normalized_text=(
-                    "retrieved evidence available for claim grounded answer composition"
-                ),
-                status=ClaimStatus.UNVERIFIED,
-                uncertainty=UncertaintyLevel.MEDIUM,
-                supporting_evidence_ids=[item.id for item in evidence],
-                citation_ids=[item.id for item in citations],
-            )
-        ],
-        entities=[],
-        follow_up_questions=[
-            "Which evidence should be checked against other outlets?",
-            "Do you want a Quick Read or In Depth answer?",
-        ],
-    )
-
-
-def _compose_contract_explanation(
-    state: ExplanationGraphState,
-    retrieved_at: datetime,
-) -> ExplanationResponse:
-    source_id = uuid4()
-    evidence_id = uuid4()
-    citation_id = uuid4()
-    entity_id = uuid4()
-    source = Source(
-        id=source_id,
-        url="https://example.com/graph-contract-source",
-        title="Graph orchestration contract source",
-        publisher="Politik Yuk System",
-        retrieved_at=retrieved_at,
-        source_type=SourceType.OTHER,
-    )
-    evidence = EvidencePassage(
-        id=evidence_id,
-        source_id=source_id,
-        text=(
-            "This deterministic evidence confirms graph orchestration, routing, checkpointing, "
-            "and streaming behavior only."
-        ),
-        relevance_score=1,
-    )
-    citation = Citation(
-        id=citation_id,
-        source_id=source_id,
-        evidence_passage_id=evidence_id,
-        label="1",
-        quote="Deterministic evidence confirms graph orchestration behavior.",
-    )
-    entity = Entity(
-        id=entity_id,
-        name="Politik Yuk",
-        entity_type=EntityType.ORGANIZATION,
-        description="The product surface receiving and structuring this explanation request.",
-        source_ids=[source_id],
-    )
-    return ExplanationResponse(
-        request_id=state.request_id,
-        input=state.input,
-        intent=state.intent or _fallback_intent(state),
-        sections=[
-            ExplanationSection(
-                section_type=ExplanationSectionType.TLDR,
-                title="TL;DR",
-                body=(
-                    "Politik Yuk routed this request through the graph MVP and returned a "
-                    "structured placeholder while grounded answer generation remains pending."
-                ),
-                citation_ids=[citation_id],
-                uncertainty=UncertaintyLevel.HIGH,
-            ),
-            ExplanationSection(
-                section_type=ExplanationSectionType.ESSENTIAL_CONTEXT,
-                title="Essential context",
-                body=(
-                    "The graph records typed node outputs, route decisions, checkpoints, and "
-                    "streaming events. It does not yet assert live political conclusions."
-                ),
-                citation_ids=[citation_id],
-                uncertainty=UncertaintyLevel.HIGH,
-            ),
-        ],
-        sources=[source],
-        evidence=[evidence],
-        citations=[citation],
-        claims=[
-            Claim(
-                text="This response is a deterministic graph MVP placeholder.",
-                normalized_text="deterministic graph mvp placeholder",
-                status=ClaimStatus.UNVERIFIED,
-                uncertainty=UncertaintyLevel.HIGH,
-                supporting_evidence_ids=[evidence_id],
-                entity_ids=[entity_id],
-                citation_ids=[citation_id],
-            )
-        ],
-        entities=[entity],
-        follow_up_questions=[
-            "Should this use a short route or deep retrieval route?",
-            "Which lens matters most for this topic?",
-        ],
-    )
 
 
 def _fallback_intent(state: ExplanationGraphState) -> ParsedIntent:

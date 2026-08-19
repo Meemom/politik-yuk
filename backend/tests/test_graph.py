@@ -95,7 +95,8 @@ def test_simple_entity_question_uses_short_path_and_skips_retrieval() -> None:
     assert graph_payload["route"] == GraphRoute.SHORT
     assert GraphNodeName.FRESHNESS_CHECKER not in node_names
     assert GraphNodeName.KEYWORD_RETRIEVER not in node_names
-    assert events[-1].payload["explanation"]["citations"][0]["label"] == "1"
+    assert events[-1].payload["explanation"]["citations"] == []
+    assert events[-1].payload["explanation"]["claims"][0]["status"] == "unverified"
 
 
 def test_current_topic_uses_deep_path_with_freshness_and_retrieval_nodes() -> None:
