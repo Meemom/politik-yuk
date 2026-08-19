@@ -36,18 +36,15 @@ def test_explain_streams_progress_and_final_answer() -> None:
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/event-stream")
     assert response.headers["x-request-id"]
-    assert event_types == [
-        "request_received",
-        "intent_extracted",
-        "retrieval_planned",
-        "evidence_retrieved",
-        "answer_composing",
-        "citations_validated",
-        "complete",
-    ]
+    assert event_types[:3] == ["request_received", "intent_extracted", "retrieval_planned"]
+    assert "answer_composing" in event_types
+    assert "citations_validated" in event_types
+    assert event_types[-1] == "complete"
     assert isinstance(final_payload, dict)
     assert final_payload["explanation"]["sections"][0]["title"] == "TL;DR"
     assert final_payload["explanation"]["citations"][0]["label"] == "1"
+    assert final_payload["graph"]["route"] in {"short", "deep"}
+    assert final_payload["graph"]["node_outputs"][0]["node_name"] == "input_router"
 
 
 def test_explain_rejects_missing_url_for_url_input() -> None:
