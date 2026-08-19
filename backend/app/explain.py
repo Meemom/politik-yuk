@@ -1,19 +1,16 @@
 import json
 from collections.abc import AsyncIterator
-from typing import cast
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.cache.checkpoints import SessionCheckpointStore
-from app.cache.redis_client import RedisConnectionError, create_redis_client
-from app.cache.store import CacheStore, InMemoryRedis, RedisLike
+from app.cache.store import RedisLike
 from app.graph import ExplanationGraph
-from app.model_router import build_model_router
 from app.retrieval import ArticleKeywordRetriever, HybridRetrievalService, InMemoryVectorRetriever
+from app.runtime import build_fresh_search_service, build_runtime_model_router, runtime_redis
 from app.schemas import StreamEvent, StreamEventType, UserInputRequest
-from app.search import DisabledExternalSearchProvider, FreshSearchService
 from app.settings import get_settings
 
 router = APIRouter(prefix="/api", tags=["explain"])
@@ -42,28 +39,23 @@ def _make_error_event(request_id: UUID, error: str) -> StreamEvent:
 
 def _checkpoint_redis() -> RedisLike:
     settings = get_settings()
-    if settings.graph_checkpoint_backend != "redis":
-        return InMemoryRedis()
-    try:
-        return cast(RedisLike, create_redis_client(settings))
-    except RedisConnectionError:
-        return InMemoryRedis()
+    return runtime_redis(
+        settings,
+        purpose="graph checkpoints",
+        require_live=settings.graph_checkpoint_backend == "redis",
+    )
 
 
 def _make_graph() -> ExplanationGraph:
     settings = get_settings()
     redis = _checkpoint_redis()
     checkpoints = SessionCheckpointStore(redis, key_prefix=settings.redis_key_prefix)
-    search_cache = CacheStore(InMemoryRedis(), key_prefix=settings.redis_key_prefix)
-    freshness_service = FreshSearchService(
-        provider=DisabledExternalSearchProvider(),
-        cache=search_cache,
-    )
+    freshness_service = build_fresh_search_service(settings)
     retrieval_service = HybridRetrievalService(
         keyword_retriever=ArticleKeywordRetriever([]),
         vector_retriever=InMemoryVectorRetriever([]),
         external_provider=freshness_service,
-        model_router=build_model_router(settings),
+        model_router=build_runtime_model_router(settings),
     )
     return ExplanationGraph(
         checkpoints=checkpoints,

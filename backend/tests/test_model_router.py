@@ -184,9 +184,17 @@ async def test_model_router_classifies_timeouts_as_retryable_errors() -> None:
     assert provider.calls[ModelRoute.EMBEDDING] == 2
 
 
-def test_unknown_provider_backend_returns_typed_configuration_error() -> None:
+def test_cohere_backend_without_key_returns_typed_configuration_error() -> None:
     with pytest.raises(ModelProviderError) as exc_info:
-        build_model_router(Settings(model_provider_backend="cohere"))
+        build_model_router(Settings(model_provider_backend="cohere", cohere_api_key=""))
 
     assert exc_info.value.kind == ModelErrorKind.CONFIGURATION
     assert exc_info.value.provider == "cohere"
+
+
+def test_unknown_provider_backend_returns_typed_configuration_error() -> None:
+    with pytest.raises(ModelProviderError) as exc_info:
+        build_model_router(Settings(model_provider_backend="unknown"))
+
+    assert exc_info.value.kind == ModelErrorKind.CONFIGURATION
+    assert exc_info.value.provider == "unknown"

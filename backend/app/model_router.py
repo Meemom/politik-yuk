@@ -136,7 +136,7 @@ def build_model_router(
         return ModelRouter(providers, model_router_config_from_settings(settings))
 
     if settings.model_provider_backend == "fake":
-        provider = FakeModelProvider(
+        fake_provider = FakeModelProvider(
             text_model=settings.text_generation_model,
             structured_model=settings.structured_generation_model,
             vision_model=settings.image_analysis_model,
@@ -144,7 +144,30 @@ def build_model_router(
             rerank_model=settings.reranking_model,
         )
         return ModelRouter(
-            fake_provider_bundle(provider),
+            fake_provider_bundle(fake_provider),
+            model_router_config_from_settings(settings),
+        )
+
+    if settings.model_provider_backend == "cohere":
+        if not settings.cohere_api_key:
+            raise ModelProviderError(
+                "COHERE_API_KEY is required when MODEL_PROVIDER_BACKEND=cohere.",
+                kind=ModelErrorKind.CONFIGURATION,
+                provider="cohere",
+            )
+        from app.live_model_providers import CohereModelProvider, cohere_provider_bundle
+
+        cohere_provider = CohereModelProvider(
+            api_key=settings.cohere_api_key,
+            text_model=settings.text_generation_model,
+            structured_model=settings.structured_generation_model,
+            vision_model=settings.image_analysis_model,
+            embedding_model=settings.embedding_model,
+            rerank_model=settings.reranking_model,
+            timeout_seconds=settings.model_timeout_seconds,
+        )
+        return ModelRouter(
+            cohere_provider_bundle(cohere_provider),
             model_router_config_from_settings(settings),
         )
 

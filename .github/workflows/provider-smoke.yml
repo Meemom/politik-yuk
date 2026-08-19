@@ -1,45 +1,11 @@
-name: CI
+name: Provider Smoke
 
 on:
-  pull_request:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
-  frontend:
-    name: Frontend
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: .
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Test
-        run: npm test
-
-      - name: Build
-        run: npm run build
-
-  backend:
-    name: Backend
+  provider-smoke:
+    name: Provider Smoke
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -65,11 +31,14 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      ENVIRONMENT: test
+      ENVIRONMENT: provider-smoke
       POSTGRES_URL: postgresql://aya:aya@localhost:5432/aya_context
       REDIS_URL: redis://localhost:6379/0
-      MODEL_PROVIDER_BACKEND: fake
-      EXTERNAL_SEARCH_PROVIDER: disabled
+      GRAPH_CHECKPOINT_BACKEND: redis
+      MODEL_PROVIDER_BACKEND: cohere
+      EXTERNAL_SEARCH_PROVIDER: tavily
+      COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
     defaults:
       run:
         working-directory: backend
@@ -89,14 +58,10 @@ jobs:
       - name: Run migrations
         run: python -m app.persistence.cli migrate
 
-      - name: Seed local data
-        run: python -m app.persistence.cli seed
+      - name: Verify required secrets
+        run: |
+          test -n "$COHERE_API_KEY"
+          test -n "$TAVILY_API_KEY"
 
-      - name: Ruff
-        run: ruff check .
-
-      - name: Mypy
-        run: mypy app
-
-      - name: Test
-        run: pytest -m "not live_provider_smoke"
+      - name: Provider smoke tests
+        run: pytest -m live_provider_smoke
