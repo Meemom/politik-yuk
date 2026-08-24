@@ -16,6 +16,10 @@ services:
         fromDatabase:
           name: politik-yuk-postgres
           property: connectionString
+      - key: MIGRATION_DATABASE_CONNECT_ATTEMPTS
+        value: "6"
+      - key: MIGRATION_DATABASE_CONNECT_DELAY_SECONDS
+        value: "5"
       - key: REDIS_URL
         sync: false
       - key: WORKER_BROKER_URL
@@ -54,6 +58,10 @@ services:
         fromDatabase:
           name: politik-yuk-postgres
           property: connectionString
+      - key: MIGRATION_DATABASE_CONNECT_ATTEMPTS
+        value: "6"
+      - key: MIGRATION_DATABASE_CONNECT_DELAY_SECONDS
+        value: "5"
       - key: REDIS_URL
         sync: false
       - key: WORKER_BROKER_URL

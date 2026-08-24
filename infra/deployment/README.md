@@ -22,6 +22,8 @@ Set these values on both Render services:
 ```text
 ENVIRONMENT=production
 POSTGRES_URL=<from Render database connectionString>
+MIGRATION_DATABASE_CONNECT_ATTEMPTS=6
+MIGRATION_DATABASE_CONNECT_DELAY_SECONDS=5
 REDIS_URL=<Redis Cloud URL>
 WORKER_BROKER_URL=<Redis Cloud URL, usually a dedicated database/index>
 WORKER_RESULT_BACKEND_URL=<Redis Cloud URL, usually a dedicated database/index>

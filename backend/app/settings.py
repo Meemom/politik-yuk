@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     app_name: str = "Politik Yuk"
     environment: str = "local"
     postgres_url: str = "postgresql://aya:aya@localhost:5432/aya_context"
+    migration_database_connect_attempts: int = 6
+    migration_database_connect_delay_seconds: float = 5
     redis_url: str = "redis://localhost:6379/0"
     redis_key_prefix: str = "politik-yuk"
     redis_socket_timeout_seconds: float = 2
