@@ -101,6 +101,10 @@ mypy app
 pytest
 ```
 
+## Deployment
+
+The production path uses Vercel for the Next.js frontend, Render for the FastAPI API and Celery worker, Render Postgres for durable data, and Redis Cloud for Redis Stack/vector-capable cache and queue state. See [infra/deployment/README.md](./infra/deployment/README.md) for provisioning, environment variables, migrations, smoke tests, rollback, and recovery steps.
+
 ## Planning
 
 See [PLAN.md](./PLAN.md) for the rebuild milestones and pull request sequence.

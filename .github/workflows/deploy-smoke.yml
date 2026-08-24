@@ -1,0 +1,38 @@
+name: Deploy Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      frontend_url:
+        description: Production or staging frontend URL.
+        required: true
+        type: string
+      backend_url:
+        description: Production or staging backend URL.
+        required: true
+        type: string
+      explain_query:
+        description: Evidence-grounded query to run through external search and explain.
+        required: false
+        default: siapa presiden indonesia sekarang?
+        type: string
+
+jobs:
+  smoke:
+    name: Post-deployment smoke tests
+    runs-on: ubuntu-latest
+    env:
+      FRONTEND_URL: ${{ inputs.frontend_url }}
+      BACKEND_URL: ${{ inputs.backend_url }}
+      SMOKE_EXPLAIN_QUERY: ${{ inputs.explain_query }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run deployment smoke tests
+        run: python scripts/deployment_smoke.py

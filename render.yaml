@@ -1,0 +1,82 @@
+services:
+  - type: web
+    name: politik-yuk-api
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    dockerCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    preDeployCommand: python -m app.persistence.cli migrate
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: POSTGRES_URL
+        fromDatabase:
+          name: politik-yuk-postgres
+          property: connectionString
+      - key: REDIS_URL
+        sync: false
+      - key: WORKER_BROKER_URL
+        sync: false
+      - key: WORKER_RESULT_BACKEND_URL
+        sync: false
+      - key: GRAPH_CHECKPOINT_BACKEND
+        value: redis
+      - key: ALLOW_INMEMORY_REDIS
+        value: "false"
+      - key: MODEL_PROVIDER_BACKEND
+        value: cohere
+      - key: COHERE_API_KEY
+        sync: false
+      - key: EXTERNAL_SEARCH_PROVIDER
+        value: tavily
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: BRAVE_SEARCH_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+
+  - type: worker
+    name: politik-yuk-worker
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    dockerCommand: celery -A workers.celery_app.celery_app worker --loglevel=info
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: POSTGRES_URL
+        fromDatabase:
+          name: politik-yuk-postgres
+          property: connectionString
+      - key: REDIS_URL
+        sync: false
+      - key: WORKER_BROKER_URL
+        sync: false
+      - key: WORKER_RESULT_BACKEND_URL
+        sync: false
+      - key: GRAPH_CHECKPOINT_BACKEND
+        value: redis
+      - key: ALLOW_INMEMORY_REDIS
+        value: "false"
+      - key: MODEL_PROVIDER_BACKEND
+        value: cohere
+      - key: COHERE_API_KEY
+        sync: false
+      - key: EXTERNAL_SEARCH_PROVIDER
+        value: tavily
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: BRAVE_SEARCH_API_KEY
+        sync: false
+
+databases:
+  - name: politik-yuk-postgres
+    databaseName: politik_yuk
+    user: politik_yuk
+    plan: basic-256mb

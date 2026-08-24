@@ -1,0 +1,16 @@
+.git
+.github
+.mypy_cache
+.next
+.pytest_cache
+.ruff_cache
+.venv
+__pycache__
+*.egg-info
+*.pyc
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+node_modules
+coverage
