@@ -93,4 +93,6 @@ def test_readiness_reports_missing_live_dependencies_without_secrets() -> None:
 
     assert by_name["model_provider"].status == "degraded"
     assert by_name["search_provider"].status == "degraded"
+    assert by_name["postgres"].status == "unavailable"
     assert by_name["redis"].status == "unavailable"
+    assert by_name["worker_queue"].status == "unavailable"

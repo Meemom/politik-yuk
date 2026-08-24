@@ -98,7 +98,9 @@ def readiness_status(settings: Settings) -> list[RuntimeStatus]:
     statuses = [
         _model_status(settings),
         _search_status(settings),
+        _postgres_status(settings),
         _redis_status(settings),
+        _worker_queue_status(settings),
     ]
     return statuses
 
@@ -151,6 +153,37 @@ def _redis_status(settings: Settings) -> RuntimeStatus:
     except Exception as exc:
         return RuntimeStatus("redis", "unavailable", str(exc))
     return RuntimeStatus("redis", "ok", "connected")
+
+
+def _postgres_status(settings: Settings) -> RuntimeStatus:
+    if is_test_runtime(settings):
+        return RuntimeStatus("postgres", "degraded", "not checked in test runtime")
+    try:
+        from app.persistence.connection import postgres_connection
+
+        with postgres_connection(settings) as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+    except Exception as exc:
+        return RuntimeStatus("postgres", "unavailable", str(exc))
+    return RuntimeStatus("postgres", "ok", "connected")
+
+
+def _worker_queue_status(settings: Settings) -> RuntimeStatus:
+    if _allow_inmemory_redis(settings):
+        return RuntimeStatus("worker_queue", "degraded", "not checked with in-memory Redis")
+    try:
+        from redis import Redis
+
+        broker = Redis.from_url(
+            settings.worker_broker_url,
+            socket_timeout=settings.redis_socket_timeout_seconds,
+            socket_connect_timeout=settings.redis_socket_timeout_seconds,
+        )
+        broker.ping()
+    except Exception as exc:
+        return RuntimeStatus("worker_queue", "unavailable", str(exc))
+    return RuntimeStatus("worker_queue", "ok", "broker connected")
 
 
 def _allow_inmemory_redis(settings: Settings) -> bool:
